@@ -76,6 +76,14 @@ public:
         : Shape(o2w, w2o, ro) {
         mesh = m;
         v = &mesh->vertexIndex[3*n];
+		/*
+		printf("Triangle: ");
+		for (int i = 0;i < 3;i++) {
+			auto& p = mesh->p[v[i]];
+			printf("(%f, %f, %f) ", p.x, p.y, p.z);
+		}
+		printf("\n");
+		*/
         PBRT_CREATED_TRIANGLE(this);
     }
     BBox ObjectBound() const;

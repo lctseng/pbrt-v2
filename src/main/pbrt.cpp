@@ -37,8 +37,25 @@
 #include "parser.h"
 #include "parallel.h"
 
+
+// TODO:test for 3D plane
+#include "shapes/heightfield2.h"
+
+
+
 // main program
 int main(int argc, char *argv[]) {
+	/*
+	Transform t;
+	float zs[] = { 0,1,0,1 };
+	Heightfield2 hf(&t, &t, true, 2, 2, zs);
+
+	Ray r(Point(0, 0, 1), Normalize(Vector(1, 0, 0)), 0);
+
+	hf.Intersect(r, NULL, NULL, NULL);
+
+	return 0;
+	*/
     Options options;
     vector<string> filenames;
     // Process command-line arguments
