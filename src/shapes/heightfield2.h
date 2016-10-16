@@ -42,34 +42,34 @@
 
 
 
-
+class Heightfield2;
 
 
 class Plane3D {
 public:
 	Plane3D() {}
-	Plane3D(const Point& p1, const Point& p2, const Point& p3);
+	Plane3D(Heightfield2* hf, const Point& p1, const Point& p2, const Point& p3);
 	bool Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 		DifferentialGeometry *dg, float minT, float maxT);
+	bool IntersectP(const Ray &ray,float minT, float maxT);
 private:
-	Point points[3];
-	Vector normal;
+	Point p1, p2, p3;
+	Vector normal, e1, e2;
+	float uvs[3][2];
+	Heightfield2* hf;
+	Vector dpdu, dpdv;
 };
 
 class HVoxel {
 public:
-	HVoxel() { fromTriangle = false; }
-	HVoxel(const Point& p1, const Point& p2, const Point& p3, const Point& p4);
-	void SetTriangle(TriangleMesh* m);
+	HVoxel() { }
+	HVoxel(Heightfield2* hf, const Point& p1, const Point& p2, const Point& p3, const Point& p4);
 
-	bool IntersectP(const Ray &ray);
+	bool IntersectP(const Ray &ray, float minT, float maxT);
 	bool Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 		DifferentialGeometry *dg, float minT, float maxT);
 private:
 	Plane3D planes[2];
-	Reference<TriangleMesh> triangle;
-	vector<Reference<Shape> > refined;
-	bool fromTriangle;
 };
 
 
@@ -80,7 +80,6 @@ public:
     Heightfield2(const Transform *o2, const Transform *w2o, bool ro, int nu, int nv, const float *zs);
     ~Heightfield2();
     bool CanIntersect() const;
-    void Refine(vector<Reference<Shape> > &refined) const;
     BBox ObjectBound() const;
 	bool Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 		DifferentialGeometry *dg) const;
