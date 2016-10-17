@@ -36,8 +36,11 @@
 #include "shapes/trianglemesh.h"
 #include "paramset.h"
 
-Plane3D::Plane3D(Heightfield2* vhf, const Point& pp1, const Point& pp2, const Point& pp3) {
+Plane3D::Plane3D(Heightfield2* vhf, const Point& pp1, const Point& pp2, const Point& pp3, const Normal& nn1, const Normal& nn2, const Normal& nn3) : Shape(vhf->ObjectToWorld, vhf->WorldToObject, vhf->ReverseOrientation){
 	hf = vhf;
+	n1 = nn1;
+	n2 = nn2;
+	n3 = nn3;
 	for (int i = 0;i < 2;i++) {
 		uvs[0][i] = pp1[i];
 	}
@@ -63,19 +66,25 @@ Plane3D::Plane3D(Heightfield2* vhf, const Point& pp1, const Point& pp2, const Po
 	float dv1 = uvs[0][1] - uvs[2][1];
 	float dv2 = uvs[1][1] - uvs[2][1];
 	// Compute deltas for triangle partial derivatives
-	Vector dp1, dp2;
-	dp1 = p1 - p3;
-	dp2 = p2 - p3;
+	// normal  
+	Normal dn1 = n1 - n3;
+	Normal dn2 = n2 - n3;
+	Vector dp1 = p1 - p3;
+	Vector dp2 = p2 - p3;
 	float determinant = du1 * dv2 - dv1 * du2;
 	if (determinant == 0.f) {
 		// Handle zero determinant for triangle partial derivative matrix
 		CoordinateSystem(Normalize(Cross(e2, e1)), &dpdu, &dpdv);
+		dndu = dndv = Normal(0, 0, 0);
 	}
 	else {
 		float invdet = 1.f / determinant;
 		dpdu = (dv2 * dp1 - dv1 * dp2) * invdet;
 		dpdv = (-du2 * dp1 + du1 * dp2) * invdet;
+		dndu = (dv2 * dn1 - dv1 * dn2) * invdet;
+		dndv = (-du2 * dn1 + du1 * dn2) * invdet;
 	}
+	//printf("dndu: %f, %f, %f\n", dndv.x, dndv.y, dndv.z);
 }
 bool Plane3D::Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 	DifferentialGeometry *dg, float minT, float maxT) {
@@ -122,8 +131,8 @@ bool Plane3D::Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 
 	// Fill in _DifferentialGeometry_ from triangle hit
 	*dg = DifferentialGeometry(ray(t), dpdu, dpdv,
-		Normal(0, 0, 0), Normal(0, 0, 0),
-		tu, tv, hf);
+		Normal(0,0,0), Normal(0, 0, 0),
+		tu, tv, this);
 	*tHit = t;
 	*rayEpsilon = 1e-3f * *tHit;
 	
@@ -168,20 +177,65 @@ bool Plane3D::IntersectP(const Ray &ray,float minT, float maxT) {
 	return true;
 }
 
-
-HVoxel::HVoxel(Heightfield2 *hf, const Point& p1, const Point& p2, const Point& p3, const Point& p4)
+void Plane3D::GetShadingGeometry(const Transform &obj2world,
+	const DifferentialGeometry &dg,
+	DifferentialGeometry *dgShading) const
 {
-	planes[0] = Plane3D(hf, p1, p2, p4);
-	planes[1] = Plane3D(hf, p1, p4, p3);
+	// Initialize _Triangle_ shading geometry with _n_ and _s_
+	// Compute barycentric coordinates for point
+	float b[3];
+
+	// Initialize _A_ and _C_ matrices for barycentrics
+	float A[2][2] =
+	{ { uvs[1][0] - uvs[0][0], uvs[2][0] - uvs[0][0] },
+	{ uvs[1][1] - uvs[0][1], uvs[2][1] - uvs[0][1] } };
+	float C[2] = { dg.u - uvs[0][0], dg.v - uvs[0][1] };
+	if (!SolveLinearSystem2x2(A, C, &b[1], &b[2])) {
+		// Handle degenerate parametric mapping
+		b[0] = b[1] = b[2] = 1.f / 3.f;
+	}
+	else
+		b[0] = 1.f - b[1] - b[2];
+
+	// Use _n_ and _s_ to compute shading tangents for triangle, _ss_ and _ts_
+	Normal ns;
+	Vector ss, ts;
+	ns = Normalize(obj2world(b[0] * n1 +
+		b[1] * n2 +
+		b[2] * n3));
+	ss = Normalize(dg.dpdu);
+	ts = Cross(ss, ns);
+
+	if (ts.LengthSquared() > 0.f) {
+		ts = Normalize(ts);
+		ss = Cross(ts, ns);
+	}
+	else
+		CoordinateSystem((Vector)ns, &ss, &ts);
+	Normal dndu, dndv;
+
+
+	*dgShading = DifferentialGeometry(dg.p, ss, ts,
+		obj2world(dndu), obj2world(dndv),
+		dg.u, dg.v, dg.shape);
+	dgShading->dudx = dg.dudx;  dgShading->dvdx = dg.dvdx;
+	dgShading->dudy = dg.dudy;  dgShading->dvdy = dg.dvdy;
+	dgShading->dpdx = dg.dpdx;  dgShading->dpdy = dg.dpdy;
+}
+
+HVoxel::HVoxel(Heightfield2 *hf, const Point& p1, const Point& p2, const Point& p3, const Point& p4, const Normal& n1, const Normal& n2, const Normal& n3, const Normal& n4)
+{
+	planes[0] = new Plane3D(hf, p1, p2, p4, n1, n2, n4);
+	planes[1] = new Plane3D(hf, p1, p4, p3, n1, n4, n3);
 }
 bool HVoxel::IntersectP(const Ray &ray, float minT, float maxT) {
-	return planes[0].IntersectP(ray, minT, maxT) ||
-		planes[1].IntersectP(ray, minT, maxT);
+	return planes[0]->IntersectP(ray, minT, maxT) ||
+		planes[1]->IntersectP(ray, minT, maxT);
 }
 bool HVoxel::Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 	DifferentialGeometry *dg, float minT, float maxT) {
-	return planes[0].Intersect(ray, tHit, rayEpsilon, dg, minT, maxT) ||
-		planes[1].Intersect(ray, tHit, rayEpsilon, dg, minT, maxT);
+	return planes[0]->Intersect(ray, tHit, rayEpsilon, dg, minT, maxT) ||
+		planes[1]->Intersect(ray, tHit, rayEpsilon, dg, minT, maxT);
 }
 
 // Heightfield2 Method Definitions
@@ -194,21 +248,56 @@ Heightfield2::Heightfield2(const Transform *o2w, const Transform *w2o,
 	memcpy(z, zs, nx*ny * sizeof(float));
 	// additional: accerlation structures
 	bound = WorldBound();
-	// points
+	// points & normals
 	invWidth[0] = (float)(nx - 1);
 	invWidth[1] = (float)(ny - 1);
 	width[0] = 1.0f / invWidth[0];
 	width[1] = 1.0f / invWidth[1];
 	np = x * y;
 	points = new Point[np];//AllocAligned<Point>(np);
+	normals = new Normal[np];
 	uvs = new float[np * 2];
 	int pos = 0;
 	for (int vy = 0; vy < ny; ++vy) {
 		for (int vx = 0; vx < nx; ++vx) {
+			// point info
 			points[pos].x = uvs[2 * pos] = (float)vx * width[0];
 			points[pos].y = uvs[2 * pos + 1] = (float)vy * width[1];
 			points[pos].z = z[pos];
+			// next
 			pos++;
+		}
+	}
+	pos = 0;
+	for (int vy = 0; vy < ny; ++vy) {
+		for (int vx = 0; vx < nx; ++vx) {
+#define VERT(vx,vy) ((vx)+(vy)*nx)
+			// normal info
+			Vector e1, e2;
+			// check edge point?
+			// x
+			if (vx == 0) {
+				e1 = points[VERT(vx + 1, vy)] - points[VERT(vx, vy)];
+			}
+			else if (vx == nx - 1) {
+				e1 = points[VERT(vx, vy)] - points[VERT(vx - 1, vy)];
+			}
+			else {
+				e1 = points[VERT(vx + 1, vy)] - points[VERT(vx -1, vy)];
+			}
+			// y
+			if (vy == 0) {
+				e2 = points[VERT(vx, vy+1)] - points[VERT(vx, vy)];
+			}
+			else if (vy == ny - 1) {
+				e2 = points[VERT(vx, vy)] - points[VERT(vx, vy -1)];
+			}
+			else {
+				e2 = points[VERT(vx, vy+1)] - points[VERT(vx, vy-1)];
+			}
+			normals[pos] = Normal(Cross(e1, e2));
+			pos++;
+#undef VERT
 		}
 	}
 	// voxels
@@ -220,11 +309,15 @@ Heightfield2::Heightfield2(const Transform *o2w, const Transform *w2o,
 		for (int i = 0;i < nVoxels[0];i++) {
 #define VERT(vx,vy) ((vx)+(vy)*nx)
 			voxels[offset(i, j)] = HVoxel(
-				this, 
+				this,
 				points[VERT(i, j)],
-				points[VERT(i+1, j)],
-				points[VERT(i, j+1)],
-				points[VERT(i+1, j+1)]
+				points[VERT(i + 1, j)],
+				points[VERT(i, j + 1)],
+				points[VERT(i + 1, j + 1)],
+				normals[VERT(i, j)],
+				normals[VERT(i + 1, j)],
+				normals[VERT(i, j + 1)],
+				normals[VERT(i + 1, j + 1)]
 			);
 #undef VERT
 		}
@@ -234,8 +327,12 @@ Heightfield2::Heightfield2(const Transform *o2w, const Transform *w2o,
 
 Heightfield2::~Heightfield2() {
 	delete[] uvs;
+	for (int i = 0;i < nv;i++) {
+		voxels[i].freePlane();
+	}
 	FreeAligned(voxels);
 	delete[] points;//FreeAligned(points);
+	delete[] normals;
 	delete[] z;
 }
 
@@ -414,6 +511,3 @@ bool Heightfield2::IntersectP(const Ray &ray) const {
 	}
 	return false;
 }
-
-
-

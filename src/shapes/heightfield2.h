@@ -45,33 +45,51 @@
 class Heightfield2;
 
 
-class Plane3D {
+class Plane3D : public Shape{
 public:
-	Plane3D() {}
-	Plane3D(Heightfield2* hf, const Point& p1, const Point& p2, const Point& p3);
+	Plane3D(Heightfield2* hf, const Point& p1, const Point& p2, const Point& p3, const Normal& n1, const Normal& n2, const Normal& n3);
 	inline bool Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 		DifferentialGeometry *dg, float minT, float maxT);
 	inline bool IntersectP(const Ray &ray,float minT, float maxT);
+	
+	void GetShadingGeometry(const Transform &obj2world,
+		const DifferentialGeometry &dg,
+		DifferentialGeometry *dgShading) const;
+	
+	BBox ObjectBound() const { return BBox(); };
 private:
 	Point p1, p2, p3;
+	Normal n1, n2, n3;
 	Vector normal, e1, e2;
 	float uvs[3][2];
 	Heightfield2* hf;
 	Vector dpdu, dpdv;
+	Normal dndu, dndv;
 	float lowestZ;
 	float highestZ;
 };
 
 class HVoxel {
 public:
-	HVoxel() { }
-	HVoxel(Heightfield2* hf, const Point& p1, const Point& p2, const Point& p3, const Point& p4);
+	HVoxel(){
+		planes[0] = NULL;
+		planes[1] = NULL;
+	}
+	HVoxel(Heightfield2* hf, const Point& p1, const Point& p2, const Point& p3, const Point& p4, const Normal& n1, const Normal& n2, const Normal& n3, const Normal& n4);
 
+	inline void freePlane(){
+		for (int i = 0;i < 2;i++) {
+			if (planes[i]) {
+				delete planes[i];
+				planes[i] = NULL;
+			}
+		}
+	}
 	inline bool IntersectP(const Ray &ray, float minT, float maxT);
 	inline bool Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 		DifferentialGeometry *dg, float minT, float maxT);
-private:
-	Plane3D planes[2];
+	
+	Plane3D* planes[2];
 };
 
 
@@ -86,6 +104,11 @@ public:
 	bool Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 		DifferentialGeometry *dg) const;
 	bool IntersectP(const Ray &ray) const;
+	void GetShadingGeometry(const Transform &obj2world,
+		const DifferentialGeometry &dg,
+		DifferentialGeometry *dgShading) const {
+		dg.shape->GetShadingGeometry(obj2world, dg, dgShading);
+	}
 private:
 	inline int offset(int x, int y) const {
 		return y*nVoxels[0] + x;
@@ -99,6 +122,7 @@ private:
 	float invWidth[2];
 	BBox bound;
 	Point *points;
+	Normal* normals;
 	HVoxel *voxels;
 	float* uvs;
 };
