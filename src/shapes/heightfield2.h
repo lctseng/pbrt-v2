@@ -49,15 +49,17 @@ class Plane3D {
 public:
 	Plane3D() {}
 	Plane3D(Heightfield2* hf, const Point& p1, const Point& p2, const Point& p3);
-	bool Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
+	inline bool Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 		DifferentialGeometry *dg, float minT, float maxT);
-	bool IntersectP(const Ray &ray,float minT, float maxT);
+	inline bool IntersectP(const Ray &ray,float minT, float maxT);
 private:
 	Point p1, p2, p3;
 	Vector normal, e1, e2;
 	float uvs[3][2];
 	Heightfield2* hf;
 	Vector dpdu, dpdv;
+	float lowestZ;
+	float highestZ;
 };
 
 class HVoxel {
@@ -65,8 +67,8 @@ public:
 	HVoxel() { }
 	HVoxel(Heightfield2* hf, const Point& p1, const Point& p2, const Point& p3, const Point& p4);
 
-	bool IntersectP(const Ray &ray, float minT, float maxT);
-	bool Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
+	inline bool IntersectP(const Ray &ray, float minT, float maxT);
+	inline bool Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 		DifferentialGeometry *dg, float minT, float maxT);
 private:
 	Plane3D planes[2];

@@ -1,4 +1,4 @@
-Film "image" "string filename" ["texture.exr"] 
+Film "image" "string filename" ["texture.png"] 
 "integer xresolution" [400] "integer yresolution" [400]
 
 Sampler "bestcandidate" "integer pixelsamples" [4] 

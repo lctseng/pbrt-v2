@@ -55,6 +55,8 @@ Plane3D::Plane3D(Heightfield2* vhf, const Point& pp1, const Point& pp2, const Po
 	e2 = p3 - p1;
 	normal = Cross(e1, e2);
 	// pre-process
+	lowestZ = min(p1.z, min(p2.z, p3.z));
+	highestZ = max(p1.z, max(p2.z, p3.z));
 	// Compute triangle partial derivatives
 	float du1 = uvs[0][0] - uvs[2][0];
 	float du2 = uvs[1][0] - uvs[2][0];
@@ -77,6 +79,15 @@ Plane3D::Plane3D(Heightfield2* vhf, const Point& pp1, const Point& pp2, const Po
 }
 bool Plane3D::Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 	DifferentialGeometry *dg, float minT, float maxT) {
+	float pMin = ray.o.z + ray.d.z * minT;
+	float pMax = ray.o.z + ray.d.z * maxT;
+	if (pMin < lowestZ && pMax < lowestZ) {
+		return false;
+	}
+	if (pMin > highestZ && pMax > highestZ) {
+		return false;
+	}
+
 	float t;
 
 	Vector s1 = Cross(ray.d, e2);
@@ -116,10 +127,18 @@ bool Plane3D::Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 	*tHit = t;
 	*rayEpsilon = 1e-3f * *tHit;
 	
-	
 	return true;
 }
 bool Plane3D::IntersectP(const Ray &ray,float minT, float maxT) {
+	float pMin = ray.o.z + ray.d.z * minT;
+	float pMax = ray.o.z + ray.d.z * maxT;
+	if (pMin < lowestZ && pMax < lowestZ) {
+		return false;
+	}
+	if (pMin > highestZ && pMax > highestZ) {
+		return false;
+	}
+
 	float t;
 
 	Vector s1 = Cross(ray.d, e2);
@@ -156,21 +175,13 @@ HVoxel::HVoxel(Heightfield2 *hf, const Point& p1, const Point& p2, const Point& 
 	planes[1] = Plane3D(hf, p1, p4, p3);
 }
 bool HVoxel::IntersectP(const Ray &ray, float minT, float maxT) {
-	for (auto& plane : planes) {
-		if (plane.IntersectP(ray,minT, maxT)) {
-			return true;
-		}
-	}
-	return false;
+	return planes[0].IntersectP(ray, minT, maxT) ||
+		planes[1].IntersectP(ray, minT, maxT);
 }
 bool HVoxel::Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 	DifferentialGeometry *dg, float minT, float maxT) {
-	for (auto& plane : planes) {
-		if (plane.Intersect(ray, tHit, rayEpsilon, dg, minT, maxT)) {
-			return true;
-		}
-	}
-	return false;
+	return planes[0].Intersect(ray, tHit, rayEpsilon, dg, minT, maxT) ||
+		planes[1].Intersect(ray, tHit, rayEpsilon, dg, minT, maxT);
 }
 
 // Heightfield2 Method Definitions
@@ -204,7 +215,7 @@ Heightfield2::Heightfield2(const Transform *o2w, const Transform *w2o,
 	nVoxels[0] = nx - 1;
 	nVoxels[1] = ny - 1;
 	nv = nVoxels[0] * nVoxels[1];
-	voxels = new HVoxel[nv];//AllocAligned<HVoxel>(nv);
+	voxels = AllocAligned<HVoxel>(nv);
 	for (int j = 0;j < nVoxels[1];j++) {
 		for (int i = 0;i < nVoxels[0];i++) {
 #define VERT(vx,vy) ((vx)+(vy)*nx)
@@ -223,7 +234,7 @@ Heightfield2::Heightfield2(const Transform *o2w, const Transform *w2o,
 
 Heightfield2::~Heightfield2() {
 	delete[] uvs;
-	delete[] voxels;//FreeAligned(voxels);
+	FreeAligned(voxels);
 	delete[] points;//FreeAligned(points);
 	delete[] z;
 }
@@ -259,6 +270,7 @@ Heightfield2 *CreateHeightfield2Shape(const Transform *o2w, const Transform *w2o
 bool Heightfield2::Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 	DifferentialGeometry *dg) const {
 	// Check ray against overall grid bounds
+
 	float rayT;
 	if (bound.Inside(ray(ray.mint))) {
 		rayT = ray.mint;
@@ -267,6 +279,8 @@ bool Heightfield2::Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 	{
 		return false;
 	}
+	
+	
 	Point gridIntersect = ray(rayT);
 	// Set up 2D DDA for ray
 	float NextCrossingT[2], DeltaT[2];
@@ -294,9 +308,10 @@ bool Heightfield2::Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 			Out[axis] = -1;
 		}
 	}
+	
 	// Walk ray through voxel grid
+	
 	for (;;) {
-
 		// Check for intersection in current voxel and advance to next
 		HVoxel& voxel = voxels[offset(Pos[0], Pos[1])];
 		int stepAxis;
@@ -312,6 +327,7 @@ bool Heightfield2::Intersect(const Ray &ray, float *tHit, float *rayEpsilon,
 		if (voxel.Intersect(ray, tHit, rayEpsilon, dg, rayT, min(LimitT, ray.maxt))) {
 			return true;
 		}
+		
 		// Advance to next voxel
 
 		// Find _stepAxis_ for stepping to next voxel
@@ -337,7 +353,6 @@ bool Heightfield2::IntersectP(const Ray &ray) const {
 	}
 	else if (!bound.IntersectP(ray, &rayT))
 	{
-		PBRT_GRID_RAY_MISSED_BOUNDS();
 		return false;
 	}
 	Point gridIntersect = ray(rayT);
@@ -369,6 +384,7 @@ bool Heightfield2::IntersectP(const Ray &ray) const {
 		}
 	}
 	// Walk ray through voxel grid
+
 	for (;;) {
 		// Check for intersection in current voxel and advance to next
 		HVoxel& voxel = voxels[offset(Pos[0], Pos[1])];
