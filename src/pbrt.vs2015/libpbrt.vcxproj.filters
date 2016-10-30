@@ -915,6 +915,9 @@
     <ClInclude Include="..\shapes\heightfield2.h">
       <Filter>Header Files\shapes</Filter>
     </ClInclude>
+    <ClInclude Include="..\cameras\realistic.h">
+      <Filter>Header Files\cameras</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\3rdparty\ilmbase-1.0.2\half.cpp">
@@ -1687,6 +1690,9 @@
     </ClCompile>
     <ClCompile Include="..\shapes\heightfield2.cpp">
       <Filter>Source Files\shapes</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cameras\realistic.cpp">
+      <Filter>Source Files\cameras</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
