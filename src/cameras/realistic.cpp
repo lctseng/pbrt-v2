@@ -20,7 +20,7 @@ bool solveQuadratic(const float &a, const float &b, const float &c, float &x0, f
 }
 
 
-RealisticLen::RealisticLen(float radius, float n, float axisPos, float aperture)
+RealisticLen::RealisticLen(float radius, float axisPos, float n, float aperture)
 :radius(radius), n(n), axisPos(axisPos), aperture(aperture){
 	float apertureRadius = aperture / 2.f;
 	apertureRadius2 = apertureRadius * apertureRadius;
@@ -71,27 +71,26 @@ bool RealisticLen::Intersect(const Ray& ray, float* t) const {
 void RealisticCamera::ReadLens(const string& filename) {
 	string line;
 	std::ifstream fin(filename);
-	while (getline(fin, line)) {
-		// filter comments
-		int firstChar = line.find_first_not_of(' ');
-		if (line[firstChar] != '#') {
-			// form sstream
-			std::stringstream ss;
-			ss << line;
-			// read 4 data
-			float radius, axisPos, n, aperture;
-			ss >> radius >> axisPos >> n >> aperture;
-			// fix for camera aperture diameter
-			if (radius == 0 &&  aperture_diameter < aperture) {
-				aperture = aperture_diameter;
-			}
-			// fix for zero n
-			if (n == 0) {
-				n = 1.f;
-			}
-			// create new len
-			lens.push_front(RealisticLen(radius, axisPos, n, aperture));
+	while (getline(fin, line))
+	{
+		std::istringstream ss(line);
+		if (line.find('#') !=  std::string::npos) {
+			// find #
+			continue;
 		}
+		float radius, axisPos, n, aperture;
+		ss >> radius;
+		ss >> axisPos;
+		ss >> n;
+		if (n == 0.f) {
+			n = 1.f;
+		}
+		ss >> aperture;
+		if (radius == 0 && aperture_diameter < aperture)
+		{
+			aperture = aperture_diameter;
+		}
+		lens.push_front(RealisticLen(radius, axisPos, n, aperture));
 	}
 }
 
@@ -147,16 +146,16 @@ bool RealisticCamera::ProcessSnellsLaw(const RealisticLen& len, const Point& pIn
 	float n = n1 / n2;
 	// compute normal of surface
 	Vector N;
-	if(len.radius != 0.f){
+	if(len.radius < 0.f){
 		N = Normalize(pIntersect - len.centerPoint);
+	}
+	else if (len.radius > 0.f) {
+		N = Normalize(len.centerPoint - pIntersect);
 	}
 	else {
 		// for planar, N is neg Z
 		N = Vector(0, 0, -1);
 	}	
-
-	if (Dot(-inRay.d, N)<0)
-		N = -N;
 
 	float c1 = -Dot(inRay.d, N);
 	float c2Squared = 1.f - (n*n)*(1.f - (c1*c1));

@@ -17,7 +17,7 @@
 class RealisticLen {
 public:
 	RealisticLen() {};
-	RealisticLen(float radius, float n, float axisPos, float aperture);
+	RealisticLen(float radius, float axisPos , float n, float aperture);
 	float radius, n, axisPos, aperture;
 	float apertureRadius2;
 	bool Intersect(const Ray& ray, float* t) const;
