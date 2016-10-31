@@ -90,7 +90,7 @@ void RealisticCamera::ReadLens(const string& filename) {
 		{
 			aperture = aperture_diameter;
 		}
-		lens.push_front(RealisticLen(radius, axisPos, n, aperture));
+		lens.emplace_front(radius, axisPos, n, aperture);
 	}
 }
 
