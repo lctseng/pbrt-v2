@@ -19,7 +19,13 @@ public:
 	RealisticLen() {};
 	RealisticLen(float radius, float n, float axisPos, float aperture);
 	float radius, n, axisPos, aperture;
+	float apertureRadius2;
+	bool Intersect(const Ray& ray, float* t) const;
+	float axisToFilm;
+	Point axisPoint;
+	Point centerPoint;
 private:
+	
 };
 
 
@@ -42,9 +48,11 @@ private:
 	LenSet lens;
 	float xRes, yRes;
 	float filmdistance, aperture_diameter;
+	float filmPlaneZ;
+	float firstLenArea;
 
 	void ReadLens(const string& filename);
-	Ray ProcessSnellsLaw(const RealisticLen& len, float n1, float n2, const Ray& inRay) const;
+	bool ProcessSnellsLaw(const RealisticLen& len, const Point& pIntersect, float n1, float n2, const Ray& inRay, Ray* outRay) const;
 };
 
 

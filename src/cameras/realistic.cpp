@@ -4,9 +4,68 @@
 #include <fstream>
 #include <sstream>
 
+bool solveQuadratic(const float &a, const float &b, const float &c, float &x0, float &x1)
+{
+	float discr = b * b - 4 * a * c;
+	if (discr < 0) return false;
+	else if (discr == 0) x0 = x1 = -0.5 * b / a;
+	else {
+		float q = (b > 0) ?
+			-0.5 * (b + sqrt(discr)) :
+			-0.5 * (b - sqrt(discr));
+		x0 = q / a;
+		x1 = c / q;
+	}
+	return true;
+}
+
+
 RealisticLen::RealisticLen(float radius, float n, float axisPos, float aperture)
 :radius(radius), n(n), axisPos(axisPos), aperture(aperture){
-	
+	float apertureRadius = aperture / 2.f;
+	apertureRadius2 = apertureRadius * apertureRadius;
+}
+
+bool RealisticLen::Intersect(const Ray& ray, float* t) const {
+	// perform ray-sphere intersection test
+	// ref: http://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
+	float tFinal;
+	if (radius != 0.f) {
+		// a sphere surface
+		// analytic solution
+		float t0, t1;
+		Vector L = ray.o - centerPoint;
+		float a = Dot(ray.d, ray.d);
+		float b = 2 * Dot(ray.d, L);
+		float c = Dot(L, L) - radius * radius;
+		if (!solveQuadratic(a, b, c, t0, t1)) {
+			return false;
+		}
+		// t0 <= t1
+		if (t0 > t1) {
+			swap(t0, t1);
+		}
+		// if radius is neg, use t0
+		if (radius < 0.f) {
+			tFinal = t0;
+		}
+		else {
+			tFinal = t1;
+		}
+	}
+	else {
+		// is a pure plane
+		tFinal = (axisPoint.z - ray.o.z) / ray.d.z;
+	}
+	// check aperture
+	Point pIntersect = ray(tFinal);
+	float disToCenterSquare = pIntersect.x * pIntersect.x + pIntersect.y * pIntersect.y;
+	if (disToCenterSquare > (apertureRadius2)) {
+		// this ray is blocked by aperture
+		return false;
+	}
+	*t = tFinal;
+	return true;
 }
 
 void RealisticCamera::ReadLens(const string& filename) {
@@ -23,7 +82,7 @@ void RealisticCamera::ReadLens(const string& filename) {
 			float radius, axisPos, n, aperture;
 			ss >> radius >> axisPos >> n >> aperture;
 			// fix for camera aperture diameter
-			if (radius == 0 && aperture < aperture_diameter) {
+			if (radius == 0 &&  aperture_diameter < aperture) {
 				aperture = aperture_diameter;
 			}
 			// fix for zero n
@@ -35,6 +94,8 @@ void RealisticCamera::ReadLens(const string& filename) {
 		}
 	}
 }
+
+
 
 
 RealisticCamera::RealisticCamera(const AnimatedTransform &cam2world,
@@ -50,23 +111,64 @@ RealisticCamera::RealisticCamera(const AnimatedTransform &cam2world,
 	ReadLens(specfile);
 	// film distance is the axisPos of nearest len
 	lens.front().axisPos = filmdistance;
+	// setup center point for sphere lens
+	float currentDistance = 0;
+	for (auto& len : lens) {
+		currentDistance += len.axisPos;
+		len.axisToFilm = currentDistance;
+	}
+	filmPlaneZ = -currentDistance;
+	for (auto& len : lens) {
+		len.axisPoint = Point(0, 0, filmPlaneZ + len.axisToFilm);
+		if (len.radius != 0.f) {
+			len.centerPoint = Point(0, 0, len.axisPoint.z - len.radius);
+		}
+	}
 	// compute effective resolution of x and y
 	float aspectRatio = f->xResolution / f->yResolution;
 	yRes = sqrt((filmdiag*filmdiag) / (1.0 + (aspectRatio*aspectRatio)));
 	xRes = aspectRatio * yRes;
+	// compute first len area for weight
+	firstLenArea =  pow(lens.front().aperture / 2.f, 2.f) * M_PI;
+
 	
 }
 
 Point RealisticCamera::RasterToCamera(const Point& p) const {
 	float x = xRes - p.x*xRes / (float)film->xResolution - xRes / 2.f;
 	float y = p.y * yRes / (float)film->yResolution - yRes / 2.f;
-	float z = filmdistance * -1; // we treat the first len as plane Z
+	float z = filmPlaneZ;
 	return Point(x, y, z);
 
 }
 
-Ray RealisticCamera::ProcessSnellsLaw(const RealisticLen& len, float n1, float n2, const Ray& inRay) const {
-	return inRay;
+bool RealisticCamera::ProcessSnellsLaw(const RealisticLen& len, const Point& pIntersect, float n1, float n2, const Ray& inRay, Ray* outRay) const {
+	*outRay = inRay;
+	return true;
+	// implement using Heckbert¡¦s method
+	float n = n1 / n2;
+	// compute normal of surface
+	Vector N;
+	if(len.radius != 0.f){
+		N = Normalize(pIntersect - len.centerPoint);
+	}
+	else {
+		// for planar, N is neg Z
+		N = Vector(0, 0, -1);
+	}	
+
+	if (Dot(-inRay.d, N)<0)
+		N = -N;
+
+	float c1 = -Dot(inRay.d, N);
+	float c2Squared = 1.f - (n*n)*(1.f - (c1*c1));
+	if (c2Squared < 0.f) {
+		return false;
+	}
+	float c2 = sqrt(c2Squared);
+	*outRay = Ray(pIntersect, Normalize(n * inRay.d + (n*c1 - c2) * N), 0.f, INFINITY);
+	
+	return true;
 }
 
 float RealisticCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
@@ -85,26 +187,71 @@ float RealisticCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
 
 	// sample a point from disk
 	ConcentricSampleDisk(sample.lensU, sample.lensV, &xDisk, &yDisk);
+	xDisk = yDisk = 0.f;
 
 	// scale to aperture/2 of first len
 	float halfAperture = lens.front().aperture / 2.f;
 	xDisk *= halfAperture;
 	yDisk *= halfAperture;
 
-	// create a initial ray
-	// from film to disk
-	Ray lenRay(pointOnFlim, Vector(Point(xDisk, yDisk, 0) - pointOnFlim), 0.f, INFINITY);
-	
-	float currentN, nextN;
-	currentN = 1.0f; // Air
-	// traveral around the len set
-	for (int i = 0;i < lens.size();i++) {
-		nextN = lens[i].n;
-		lenRay = ProcessSnellsLaw(lens[i], currentN, nextN, lenRay );
+	// compute z coordinate of disk
+	// using triangle formula: a2 + b2 = c2
+	float zDisk;
+	if(lens.front().radius != 0.f){
+		float d = sqrt(pow(lens.front().radius, 2.f) - pow(halfAperture, 2.f));
+		if (lens.front().radius < 0.f) {
+			zDisk = lens.front().centerPoint.z - d;
+		}
+		else {
+			zDisk = lens.front().centerPoint.z + d;
+		}
+	}
+	else {
+		zDisk = lens.front().axisPoint.z;
 	}
 
-	CameraToWorld(lenRay, ray);
-	return 1.f;
+
+	// create a initial ray
+	// from film to disk
+	Point pointOnDisk(xDisk, yDisk, zDisk);
+	Vector filmToDisk = Normalize(pointOnDisk - pointOnFlim);
+	Ray lenRay(pointOnFlim, filmToDisk, 0.f, INFINITY);
+	
+	float currentN, nextN;
+	// traveral around the len set
+	// from inner to outer
+	for (int i = 0;i < lens.size();i++) {
+		currentN = lens[i].n;
+		if (i == lens.size() - 1) {
+			// this is last len, shoot into air
+			nextN = 1.f;
+		}
+		else {
+			nextN = lens[i + 1].n;
+		}
+		float intersectT;
+		if (lens[i].Intersect(lenRay, &intersectT)) {
+			Point pIntersect = lenRay(intersectT);
+			Ray outRay;
+			if (ProcessSnellsLaw(lens[i], pIntersect, currentN, nextN, lenRay, &outRay)) {
+				lenRay = outRay;
+			}
+			else {
+				ray = NULL;
+				return 0.f;
+			}
+		}
+		else {
+			// block by this len
+			ray = NULL;
+			return 0.f;
+		}
+	}
+	*ray = CameraToWorld(lenRay);
+	ray->d = Normalize(ray->d);
+	// compute weight
+	float cosTheta = Dot(Vector(0,0,1), filmToDisk);
+	return (firstLenArea / pow(abs(filmPlaneZ - zDisk), 2.f)) * pow(cosTheta, 4.f);
 }
 
 
