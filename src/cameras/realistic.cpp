@@ -90,7 +90,7 @@ void RealisticCamera::ReadLens(const string& filename) {
 				n = 1.f;
 			}
 			// create new len
-			lens.emplace_front(radius, axisPos, n, aperture);
+			lens.push_front(RealisticLen(radius, axisPos, n, aperture));
 		}
 	}
 }
@@ -143,8 +143,6 @@ Point RealisticCamera::RasterToCamera(const Point& p) const {
 }
 
 bool RealisticCamera::ProcessSnellsLaw(const RealisticLen& len, const Point& pIntersect, float n1, float n2, const Ray& inRay, Ray* outRay) const {
-	*outRay = inRay;
-	return true;
 	// implement using Heckbert¡¦s method
 	float n = n1 / n2;
 	// compute normal of surface
@@ -187,7 +185,6 @@ float RealisticCamera::GenerateRay(const CameraSample &sample, Ray *ray) const {
 
 	// sample a point from disk
 	ConcentricSampleDisk(sample.lensU, sample.lensV, &xDisk, &yDisk);
-	xDisk = yDisk = 0.f;
 
 	// scale to aperture/2 of first len
 	float halfAperture = lens.front().aperture / 2.f;
