@@ -134,7 +134,7 @@ RealisticCamera::RealisticCamera(const AnimatedTransform &cam2world,
 }
 
 Point RealisticCamera::RasterToCamera(const Point& p) const {
-	float x = xRes - p.x*xRes / (float)film->xResolution - xRes / 2.f;
+	float x = xRes / 2.f - p.x*xRes / (float)film->xResolution ;
 	float y = p.y * yRes / (float)film->yResolution - yRes / 2.f;
 	float z = filmPlaneZ;
 	return Point(x, y, z);
