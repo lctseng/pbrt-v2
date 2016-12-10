@@ -32,7 +32,7 @@
 
 // lights/infinite.cpp*
 #include "stdafx.h"
-#include "lights/medianCutEnvironmentLight.h"
+#include "lights/MedianCutEnvironmentLight.h"
 #include "sh.h"
 #include "montecarlo.h"
 #include "paramset.h"
@@ -41,7 +41,7 @@
 // InfiniteAreaLight Utility Classes
 struct InfiniteAreaCube {
     // InfiniteAreaCube Public Methods
-    InfiniteAreaCube(const medianCutEnvironmentLight *l, const Scene *s,
+    InfiniteAreaCube(const MedianCutEnvironmentLight *l, const Scene *s,
                      float t, bool cv, float pe)
         : light(l), scene(s), time(t), pEpsilon(pe), computeVis(cv) { }
     Spectrum operator()(int, int, const Point &p, const Vector &w) {
@@ -50,7 +50,7 @@ struct InfiniteAreaCube {
             return light->Le(RayDifferential(ray));
         return 0.f;
     }
-    const medianCutEnvironmentLight *light;
+    const MedianCutEnvironmentLight *light;
     const Scene *scene;
     float time, pEpsilon;
     bool computeVis;
@@ -59,13 +59,13 @@ struct InfiniteAreaCube {
 
 
 // InfiniteAreaLight Method Definitions
-medianCutEnvironmentLight::~medianCutEnvironmentLight() {
+MedianCutEnvironmentLight::~MedianCutEnvironmentLight() {
     delete distribution;
     delete radianceMap;
 }
 
 
-medianCutEnvironmentLight::medianCutEnvironmentLight(const Transform &light2world,
+MedianCutEnvironmentLight::MedianCutEnvironmentLight(const Transform &light2world,
         const Spectrum &L, int ns, const string &texmap)
     : Light(light2world, ns) {
     int width = 0, height = 0;
@@ -105,7 +105,7 @@ medianCutEnvironmentLight::medianCutEnvironmentLight(const Transform &light2worl
 }
 
 
-Spectrum medianCutEnvironmentLight::Power(const Scene *scene) const {
+Spectrum MedianCutEnvironmentLight::Power(const Scene *scene) const {
     Point worldCenter;
     float worldRadius;
     scene->WorldBound().BoundingSphere(&worldCenter, &worldRadius);
@@ -114,7 +114,7 @@ Spectrum medianCutEnvironmentLight::Power(const Scene *scene) const {
 }
 
 
-Spectrum medianCutEnvironmentLight::Le(const RayDifferential &r) const {
+Spectrum MedianCutEnvironmentLight::Le(const RayDifferential &r) const {
     Vector wh = Normalize(WorldToLight(r.d));
     float s = SphericalPhi(wh) * INV_TWOPI;
     float t = SphericalTheta(wh) * INV_PI;
@@ -122,7 +122,7 @@ Spectrum medianCutEnvironmentLight::Le(const RayDifferential &r) const {
 }
 
 
-void medianCutEnvironmentLight::SHProject(const Point &p, float pEpsilon,
+void MedianCutEnvironmentLight::SHProject(const Point &p, float pEpsilon,
         int lmax, const Scene *scene, bool computeLightVis,
         float time, RNG &rng, Spectrum *coeffs) const {
     // Project _InfiniteAreaLight_ to SH using Monte Carlo if visibility needed
@@ -181,18 +181,18 @@ void medianCutEnvironmentLight::SHProject(const Point &p, float pEpsilon,
 }
 
 
-medianCutEnvironmentLight *CreateMedianCutEnvironmentLight(const Transform &light2world,
+MedianCutEnvironmentLight *CreateMedianCutEnvironmentLight(const Transform &light2world,
         const ParamSet &paramSet) {
     Spectrum L = paramSet.FindOneSpectrum("L", Spectrum(1.0));
     Spectrum sc = paramSet.FindOneSpectrum("scale", Spectrum(1.0));
     string texmap = paramSet.FindOneFilename("mapname", "");
     int nSamples = paramSet.FindOneInt("nsamples", 1);
     if (PbrtOptions.quickRender) nSamples = max(1, nSamples / 4);
-    return new medianCutEnvironmentLight(light2world, L * sc, nSamples, texmap);
+    return new MedianCutEnvironmentLight(light2world, L * sc, nSamples, texmap);
 }
 
 
-Spectrum medianCutEnvironmentLight::Sample_L(const Point &p, float pEpsilon,
+Spectrum MedianCutEnvironmentLight::Sample_L(const Point &p, float pEpsilon,
         const LightSample &ls, float time, Vector *wi, float *pdf,
         VisibilityTester *visibility) const {
     PBRT_INFINITE_LIGHT_STARTED_SAMPLE();
@@ -221,7 +221,7 @@ Spectrum medianCutEnvironmentLight::Sample_L(const Point &p, float pEpsilon,
 }
 
 
-float medianCutEnvironmentLight::Pdf(const Point &, const Vector &w) const {
+float MedianCutEnvironmentLight::Pdf(const Point &, const Vector &w) const {
     PBRT_INFINITE_LIGHT_STARTED_PDF();
     Vector wi = WorldToLight(w);
     float theta = SphericalTheta(wi), phi = SphericalPhi(wi);
@@ -234,7 +234,7 @@ float medianCutEnvironmentLight::Pdf(const Point &, const Vector &w) const {
 }
 
 
-Spectrum medianCutEnvironmentLight::Sample_L(const Scene *scene,
+Spectrum MedianCutEnvironmentLight::Sample_L(const Scene *scene,
         const LightSample &ls, float u1, float u2, float time,
         Ray *ray, Normal *Ns, float *pdf) const {
     PBRT_INFINITE_LIGHT_STARTED_SAMPLE();

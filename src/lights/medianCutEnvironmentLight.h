@@ -33,10 +33,10 @@
 #pragma once
 #endif
 
-#ifndef PBRT_LIGHTS_medianCutEnvironmentLight_H
-#define PBRT_LIGHTS_medianCutEnvironmentLight_H
+#ifndef PBRT_LIGHTS_MedianCutEnvironmentLight_H
+#define PBRT_LIGHTS_MedianCutEnvironmentLight_H
 
-// lights/medianCutEnvironmentLight.h*
+// lights/MedianCutEnvironmentLight.h*
 #include "pbrt.h"
 #include "light.h"
 #include "texture.h"
@@ -45,12 +45,12 @@
 #include "mipmap.h"
 
 // InfiniteAreaLight Declarations
-class medianCutEnvironmentLight : public Light {
+class MedianCutEnvironmentLight : public Light {
 public:
     // InfiniteAreaLight Public Methods
-	medianCutEnvironmentLight(const Transform &light2world, const Spectrum &power, int ns,
+	MedianCutEnvironmentLight(const Transform &light2world, const Spectrum &power, int ns,
         const string &texmap);
-    ~medianCutEnvironmentLight();
+    ~MedianCutEnvironmentLight();
     Spectrum Power(const Scene *) const;
     bool IsDeltaLight() const { return false; }
     Spectrum Le(const RayDifferential &r) const;
@@ -68,7 +68,7 @@ private:
 };
 
 
-medianCutEnvironmentLight *CreateMedianCutEnvironmentLight(const Transform &light2world,
+MedianCutEnvironmentLight *CreateMedianCutEnvironmentLight(const Transform &light2world,
         const ParamSet &paramSet);
 
 #endif // PBRT_LIGHTS_INFINITE_H
