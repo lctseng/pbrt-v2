@@ -54,6 +54,8 @@ struct MedianPos {
 
 struct MedianRect {
 	MedianPos topLeft, topRight, bottomLeft, bottomRight;
+	int width()const { return topRight.x - topLeft.x; }
+	int height()const { return bottomLeft.y - topLeft.y; }
 };
 
 // InfiniteAreaLight Declarations
@@ -93,5 +95,7 @@ inline float FindAreaSum(float* table, int width, int height, MedianRect& rect);
 
 void WriteSpectrumToFile(const string& filename, RGBSpectrum* pixels, int width, int height);
 
+void DrawRectOutlineOnSpectrum(RGBSpectrum* pixels, int width, int height, MedianRect& rect);
+void DrawRectAreaOnSpectrum(RGBSpectrum* pixels, int width, int height, MedianRect& rect);
 
 #endif // PBRT_LIGHTS_INFINITE_H
