@@ -39,9 +39,9 @@
 #include "imageio.h"
 
 // InfiniteAreaLight Utility Classes
-struct InfiniteAreaCube {
-    // InfiniteAreaCube Public Methods
-    InfiniteAreaCube(const MedianCutEnvironmentLight *l, const Scene *s,
+struct MedianCutEnvironmentCube {
+    // MedianCutEnvironmentCube Public Methods
+	MedianCutEnvironmentCube(const MedianCutEnvironmentLight *l, const Scene *s,
                      float t, bool cv, float pe)
         : light(l), scene(s), time(t), pEpsilon(pe), computeVis(cv) { }
     Spectrum operator()(int, int, const Point &p, const Vector &w) {
@@ -174,7 +174,7 @@ void MedianCutEnvironmentLight::SHProject(const Point &p, float pEpsilon,
     }
     else {
         // Project _InfiniteAreaLight_ to SH from cube map sampling
-        SHProjectCube(InfiniteAreaCube(this, scene, time, computeLightVis,
+        SHProjectCube(MedianCutEnvironmentCube(this, scene, time, computeLightVis,
                                        pEpsilon),
                       p, 200, lmax, coeffs);
     }
