@@ -44,6 +44,18 @@
 #include "scene.h"
 #include "mipmap.h"
 
+
+#define MEDIAN_AXIS_X 0
+#define MEDIAN_AXIS_Y 1
+
+struct MedianPos {
+	int x, y;
+};
+
+struct MedianRect {
+	MedianPos topLeft, topRight, bottomLeft, bottomRight;
+};
+
 // InfiniteAreaLight Declarations
 class MedianCutEnvironmentLight : public Light {
 public:
@@ -62,13 +74,24 @@ public:
     void SHProject(const Point &p, float pEpsilon, int lmax, const Scene *scene,
         bool computeLightVis, float time, RNG &rng, Spectrum *coeffs) const;
 private:
+	// Pirvate methods
+	void CreatePointLights(RGBSpectrum* pixels, int width, int height);
     // InfiniteAreaLight Private Data
     MIPMap<RGBSpectrum> *radianceMap;
     Distribution2D *distribution;
 };
 
 
+
+
 MedianCutEnvironmentLight *CreateMedianCutEnvironmentLight(const Transform &light2world,
         const ParamSet &paramSet);
+
+inline float RGBSpectrumToFloat(RGBSpectrum& s);
+inline float FindAreaSum(float* table, int width, int height, MedianRect& rect);
+
+
+void WriteSpectrumToFile(const string& filename, RGBSpectrum* pixels, int width, int height);
+
 
 #endif // PBRT_LIGHTS_INFINITE_H

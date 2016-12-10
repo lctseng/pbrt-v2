@@ -82,6 +82,7 @@ MedianCutEnvironmentLight::MedianCutEnvironmentLight(const Transform &light2worl
         texels = new RGBSpectrum[1];
         texels[0] = L.ToRGBSpectrum();
     }
+	CreatePointLights(texels, width, height);
     radianceMap = new MIPMap<RGBSpectrum>(width, height, texels);
     delete[] texels;
     // Initialize sampling PDFs for infinite area light
@@ -103,6 +104,243 @@ MedianCutEnvironmentLight::MedianCutEnvironmentLight(const Transform &light2worl
     distribution = new Distribution2D(img, width, height);
     delete[] img;
 }
+
+#ifdef _DEBUG
+#define SHOW_DEBUG_INFO 1
+#else
+#define SHOW_DEBUG_INFO 0
+#endif
+#define INDEX_AT(i,j) ((i)*width+(j))
+
+// find a area sum
+float FindAreaSum(float* table, int width, int height, MedianRect& rect) {
+	float bottomRight = 0.0, topLeft = 0.0, topRight = 0.0, bottomLeft = 0.0;
+	// compute topLeft
+	if (rect.topLeft.x > 0 && rect.topLeft.y > 0) {
+		topLeft = table[INDEX_AT(rect.topLeft.y - 1, rect.topLeft.x - 1)];
+	}
+	// compute topRight
+	if (rect.topRight.y > 0) {
+		topRight = table[INDEX_AT(rect.topRight.y - 1, rect.topRight.x)];
+	}
+	// compute bottomLeft
+	if (rect.bottomLeft.x > 0) {
+		bottomLeft = table[INDEX_AT(rect.bottomLeft.y, rect.bottomLeft.x - 1)];
+	}
+	// compute bottomRight
+	bottomRight = table[INDEX_AT(rect.bottomRight.y, rect.bottomRight.x)];
+
+	return bottomRight - topRight - bottomLeft + topLeft;
+}
+
+// convert specturm to float
+float RGBSpectrumToFloat(RGBSpectrum& s) {
+	float rgb[3];
+	s.ToRGB(rgb);
+	return rgb[0] + rgb[1] + rgb[2];
+	// return 0.2125 * rgb[0] + 0.7154 * rgb[1] + 0.0721 * rgb[2];
+}
+// find split axis among rect
+// param: table, rect, axis
+// return: position index on that axis
+int FindSplitIndexInRect(float* table, int width, int height, MedianRect& rect, int axis) {
+	int minIndex;
+	if (axis == MEDIAN_AXIS_X) {
+		// find a column to split
+		float minDiff = INFINITY;
+		minIndex = rect.topLeft.x;
+
+		MedianRect leftRect = rect, rightRect = rect;
+		for (int i = rect.topLeft.x + 1;i <= rect.topRight.x;i++) {
+			// determine the right-x for leftRect
+			leftRect.topRight.x = leftRect.bottomRight.x = i - 1;
+			// determine the left-x for rightRect
+			rightRect.topLeft.x = rightRect.bottomLeft.x = i ;
+			
+			float leftArea = FindAreaSum(table, width, height, leftRect);
+			float rightArea = FindAreaSum(table, width, height, rightRect);
+			float areaDiff = abs(leftArea - rightArea);
+			if (areaDiff < minDiff) {
+				minDiff = areaDiff;
+				minIndex = i;
+			}
+		}
+	}
+	else {
+		// find a row to split
+		// find a column to split
+		float minDiff = INFINITY;
+		minIndex = rect.topLeft.y;
+
+		MedianRect topRect = rect, bottomRect = rect;
+		for (int i = rect.topLeft.y + 1;i <= rect.bottomLeft.y;i++) {
+			// determine the bottom-y for topRect
+			topRect.bottomRight.y = topRect.bottomLeft.y = i - 1;
+			// determine the top-y for bottomRect
+			bottomRect.topLeft.y = bottomRect.topRight.y = i;
+
+			float topArea = FindAreaSum(table, width, height, topRect);
+			float bottomArea = FindAreaSum(table, width, height, bottomRect);
+			float areaDiff = abs(topArea - bottomArea);
+			if (areaDiff < minDiff) {
+				minDiff = areaDiff;
+				minIndex = i;
+			}
+		}
+	}
+	return minIndex;
+}
+
+
+void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, int width, int height) {
+	
+
+	// build summed area table
+	float* raw_table = new float[width * height];
+	float* summed_table = new float[width * height];
+	for (int i = 0;i < height;i++) {
+		for (int j = 0;j < width;j++) {
+			raw_table[INDEX_AT(i, j)] = RGBSpectrumToFloat(pixels[INDEX_AT(i, j)]);
+		}
+	}
+
+	for (int i = 0;i < height;i++) {
+		for (int j = 0;j < width;j++) {
+			// sum from left to current
+			int cur_index = INDEX_AT(i,j);
+			summed_table[cur_index] = 0.f;
+			for (int k = 0;k <= j;k++) {
+				summed_table[cur_index] += raw_table[INDEX_AT(i,k)];
+			}
+			// sum the previous row
+			if (i > 0) {
+				int prev_index = INDEX_AT(i-1, j);
+				summed_table[cur_index] += summed_table[prev_index];
+			}
+		}
+	}
+#if SHOW_DEBUG_INFO
+
+	printf("Partial row image:\n");
+	for (int i = 0;i < 10;i++) {
+		for (int j = 0;j < 10;j++) {
+			printf("%.6f ", raw_table[INDEX_AT(i, j)]);
+		}
+		printf("\n");
+	}
+
+	printf("Partial summed table:\n");
+	for (int i = 0;i < 10;i++) {
+		for (int j = 0;j < 10;j++) {
+			printf("%.6f ", summed_table[INDEX_AT(i,j)]);
+		}
+		printf("\n");
+	}
+	// Verifying
+	printf("Verifying table\n");
+	float br = summed_table[INDEX_AT(3, 4)];
+	float tl = summed_table[INDEX_AT(1, 1)];
+	float tr = summed_table[INDEX_AT(1, 4)];
+	float bl = summed_table[INDEX_AT(3, 1)];
+	float ans = raw_table[INDEX_AT(2, 2)] + raw_table[INDEX_AT(2, 3)] + raw_table[INDEX_AT(2, 4)] +
+		raw_table[INDEX_AT(3, 2)] + raw_table[INDEX_AT(3, 3)] + raw_table[INDEX_AT(3, 4)];
+	printf("Predicted: %.6f, Real ans: %.6f\n", br - tr - bl + tl , ans);
+	
+
+	// Verifying SummedArea Function
+	MedianRect rect;
+	rect.topLeft = {2, 2};
+	rect.topRight = { 4, 2 };
+	rect.bottomLeft = {2, 3};
+	rect.bottomRight = { 4, 3 };
+	printf("Predict Funcrion: %.6f, Real ans: %.6f\n", FindAreaSum(summed_table, width, height, rect), ans);
+
+	// Verifying Split Function
+	// whole
+	rect.topLeft = { 0 ,0 };
+	rect.topRight = { 9 ,0 };
+	rect.bottomLeft = { 0 ,9 };
+	rect.bottomRight = { 9 ,9 };
+	printf("Split whole at x: %d\n", FindSplitIndexInRect(summed_table, width, height,rect, MEDIAN_AXIS_X));
+	printf("Split whole at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
+	
+	// partial x
+	rect.topLeft = { 4 ,0 };
+	rect.topRight = { 7 ,0 };
+	rect.bottomLeft = { 4 ,9 };
+	rect.bottomRight = { 7 ,9 };
+	printf("Split partial-x at x: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_X));
+	printf("Split partial-x at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
+
+	// partial y
+	rect.topLeft = { 0 ,4 };
+	rect.topRight = { 9 ,4 };
+	rect.bottomLeft = { 0 ,7 };
+	rect.bottomRight = { 9 ,7 };
+	printf("Split partial-y at x: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_X));
+	printf("Split partial-y at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
+
+	// partial both
+	rect.topLeft = { 4 ,1 };
+	rect.topRight = { 7 ,1 };
+	rect.bottomLeft = { 4 ,4 };
+	rect.bottomRight = { 7 ,4 };
+	printf("Split partial-both at x: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_X));
+	printf("Split partial-both at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
+
+	// boundary-test
+	rect.topLeft = { 3 ,1 };
+	rect.topRight = { 3 ,1 };
+	rect.bottomLeft = { 3 ,4 };
+	rect.bottomRight = { 3 ,4 };
+	printf("Split boundary-test at x: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_X));
+	rect.topLeft = { 4 ,4 };
+	rect.topRight = { 7 ,4 };
+	rect.bottomLeft = { 4 ,4 };
+	rect.bottomRight = { 7 ,4 };
+	printf("Split boundary-test at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
+
+	// corner-test
+	rect.topLeft = { 5 ,6 };
+	rect.topRight = { 5 ,6 };
+	rect.bottomLeft = { 5 ,6 };
+	rect.bottomRight = { 5 ,6 };
+	printf("Split cornor-test at x: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_X));
+	printf("Split cornor-test at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
+	
+	// copy pixel array for debug
+	RGBSpectrum* clonePixels = new RGBSpectrum[width * height];
+	
+	for (int i = 0;i < width * height;i++) {
+		clonePixels[i] = pixels[i];
+	}
+
+	WriteSpectrumToFile("lightMap.exr", pixels, width, height);
+
+
+	delete[] clonePixels;
+
+#endif
+
+
+
+	delete[] raw_table;
+	delete[] summed_table;
+}
+
+
+void WriteSpectrumToFile(const string& filename, RGBSpectrum* pixels, int width, int height) {
+	float* rgbArray = new float[width *height * 3];
+	// copy to rgbArray
+	for (int i = 0;i < width * height;i++) {
+		pixels[i].ToRGB(rgbArray+i*3);
+	}
+	WriteImage(filename, rgbArray, rgbArray, width, height, width, height, 0 , 0);
+	delete[] rgbArray;
+}
+
+#undef INDEX_AT
+
 
 
 Spectrum MedianCutEnvironmentLight::Power(const Scene *scene) const {
