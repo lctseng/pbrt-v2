@@ -49,7 +49,6 @@
 #include "cameras/environment.h"
 #include "cameras/orthographic.h"
 #include "cameras/perspective.h"
-#include "cameras/realistic.h"
 #include "film/image.h"
 #include "filters/box.h"
 #include "filters/gaussian.h"
@@ -76,6 +75,7 @@
 #include "lights/point.h"
 #include "lights/projection.h"
 #include "lights/spot.h"
+#include "lights/medianCutEnvironmentLight.h"
 #include "materials/glass.h"
 #include "materials/kdsubsurface.h"
 #include "materials/matte.h"
@@ -104,7 +104,6 @@
 #include "shapes/cylinder.h"
 #include "shapes/disk.h"
 #include "shapes/heightfield.h"
-#include "shapes/heightfield2.h"
 #include "shapes/hyperboloid.h"
 #include "shapes/loopsubdiv.h"
 #include "shapes/nurbs.h"
@@ -346,9 +345,6 @@ Reference<Shape> MakeShape(const string &name,
     else if (name == "heightfield")
         s = CreateHeightfieldShape(object2world, world2object, reverseOrientation,
                                    paramSet);
-    else if (name == "heightfield2")
-		s = CreateHeightfield2Shape(object2world, world2object, reverseOrientation,
-				   paramSet);
     else if (name == "loopsubdiv")
         s = CreateLoopSubdivShape(object2world, world2object, reverseOrientation,
                                   paramSet);
@@ -499,6 +495,8 @@ Light *MakeLight(const string &name,
         light = CreateDistantLight(light2world, paramSet);
     else if (name == "infinite" || name == "exinfinite")
         light = CreateInfiniteLight(light2world, paramSet);
+    else if (name == "medianCutEnvironmentLight")
+	light = CreateMedianCutEnvironmentLight(light2world, paramSet);
     else
         Warning("Light \"%s\" unknown.", name.c_str());
     paramSet.ReportUnused();
@@ -616,8 +614,6 @@ Camera *MakeCamera(const string &name,
         camera = CreateOrthographicCamera(paramSet, animatedCam2World, film);
     else if (name == "environment")
         camera = CreateEnvironmentCamera(paramSet, animatedCam2World, film);
-	else if (name == "realistic")
-		camera = CreateRealisticCamera(paramSet, animatedCam2World, film);
     else
         Warning("Camera \"%s\" unknown.", name.c_str());
     paramSet.ReportUnused();
