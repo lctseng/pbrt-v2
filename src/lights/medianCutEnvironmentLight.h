@@ -82,10 +82,11 @@ public:
         bool computeLightVis, float time, RNG &rng, Spectrum *coeffs) const;
 private:
 	// Pirvate methods
-	void CreatePointLights(RGBSpectrum* pixels, float* img, int width, int height);
+	void CreatePointLights(RGBSpectrum* pixels, float* img , int numberOfLights, int width, int height);
     // InfiniteAreaLight Private Data
     MIPMap<RGBSpectrum> *radianceMap;
     Distribution2D *distribution;
+	vector<MedianPointLigt> pointLights;
 };
 
 

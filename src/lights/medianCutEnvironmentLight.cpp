@@ -103,7 +103,7 @@ MedianCutEnvironmentLight::MedianCutEnvironmentLight(const Transform &light2worl
 
 	// Compute sampling distributions for rows and columns of image
 	distribution = new Distribution2D(img, width, height);
-	CreatePointLights(texels, img, width, height);
+	CreatePointLights(texels, img, ns, width, height);
 	
 	delete[] texels;
 	delete[] img;
@@ -195,7 +195,7 @@ int FindSplitIndexInRect(float* table, int width, int height, MedianRect& rect, 
 }
 
 
-void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* img, int width, int height) {
+void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* img, int numberOfLights,  int width, int height) {
 
 
 
@@ -235,101 +235,7 @@ void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* im
 			}
 		}
 	}
-#if SHOW_DEBUG_INFO
 
-	printf("Partial row image:\n");
-	for (int i = 0;i < 10;i++) {
-		for (int j = 0;j < 10;j++) {
-			printf("%.6f ", raw_table[INDEX_AT(i, j)]);
-		}
-		printf("\n");
-	}
-
-	printf("Partial summed table:\n");
-	for (int i = 0;i < 10;i++) {
-		for (int j = 0;j < 10;j++) {
-			printf("%.6f ", summed_table[INDEX_AT(i, j)]);
-		}
-		printf("\n");
-	}
-	// Verifying
-	printf("Verifying table\n");
-	float br = summed_table[INDEX_AT(3, 4)];
-	float tl = summed_table[INDEX_AT(1, 1)];
-	float tr = summed_table[INDEX_AT(1, 4)];
-	float bl = summed_table[INDEX_AT(3, 1)];
-	float ans = raw_table[INDEX_AT(2, 2)] + raw_table[INDEX_AT(2, 3)] + raw_table[INDEX_AT(2, 4)] +
-		raw_table[INDEX_AT(3, 2)] + raw_table[INDEX_AT(3, 3)] + raw_table[INDEX_AT(3, 4)];
-	printf("Predicted: %.6f, Real ans: %.6f\n", br - tr - bl + tl, ans);
-
-
-	// Verifying SummedArea Function
-	MedianRect rect;
-	rect.topLeft = { 2, 2 };
-	rect.topRight = { 4, 2 };
-	rect.bottomLeft = { 2, 3 };
-	rect.bottomRight = { 4, 3 };
-	printf("Predict Funcrion: %.6f, Real ans: %.6f\n", FindAreaSum(summed_table, width, height, rect), ans);
-
-	// Verifying Split Function
-	// whole
-	rect.topLeft = { 0 ,0 };
-	rect.topRight = { 9 ,0 };
-	rect.bottomLeft = { 0 ,9 };
-	rect.bottomRight = { 9 ,9 };
-	printf("Split whole at x: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_X));
-	printf("Split whole at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
-
-	// partial x
-	rect.topLeft = { 4 ,0 };
-	rect.topRight = { 7 ,0 };
-	rect.bottomLeft = { 4 ,9 };
-	rect.bottomRight = { 7 ,9 };
-	printf("Split partial-x at x: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_X));
-	printf("Split partial-x at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
-
-	// partial y
-	rect.topLeft = { 0 ,4 };
-	rect.topRight = { 9 ,4 };
-	rect.bottomLeft = { 0 ,7 };
-	rect.bottomRight = { 9 ,7 };
-	printf("Split partial-y at x: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_X));
-	printf("Split partial-y at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
-
-	// partial both
-	rect.topLeft = { 4 ,1 };
-	rect.topRight = { 7 ,1 };
-	rect.bottomLeft = { 4 ,4 };
-	rect.bottomRight = { 7 ,4 };
-	printf("Split partial-both at x: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_X));
-	printf("Split partial-both at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
-
-	// boundary-test
-	rect.topLeft = { 3 ,1 };
-	rect.topRight = { 3 ,1 };
-	rect.bottomLeft = { 3 ,4 };
-	rect.bottomRight = { 3 ,4 };
-	printf("Split boundary-test at x: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_X));
-	rect.topLeft = { 4 ,4 };
-	rect.topRight = { 7 ,4 };
-	rect.bottomLeft = { 4 ,4 };
-	rect.bottomRight = { 7 ,4 };
-	printf("Split boundary-test at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
-
-	// corner-test
-	rect.topLeft = { 5 ,6 };
-	rect.topRight = { 5 ,6 };
-	rect.bottomLeft = { 5 ,6 };
-	rect.bottomRight = { 5 ,6 };
-	printf("Split cornor-test at x: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_X));
-	printf("Split cornor-test at y: %d\n", FindSplitIndexInRect(summed_table, width, height, rect, MEDIAN_AXIS_Y));
-
-	// copy pixel array for debug
-	RGBSpectrum* clonePixels = new RGBSpectrum[width * height];
-
-	for (int i = 0;i < width * height;i++) {
-		clonePixels[i] = pixels[i];
-	}
 
 	MedianRect initRegion;
 	initRegion.topLeft = {0, 0};
@@ -337,14 +243,13 @@ void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* im
 	initRegion.bottomLeft = { 0, height - 1 };
 	initRegion.bottomRight = { width -1 , height - 1 };
 
-	std::list<MedianRect> regionsA;
-	std::list<MedianRect> regionsB;
-	std::list<MedianRect> *pWorking, *pResult;
+	std::vector<MedianRect> regionsA;
+	std::vector<MedianRect> regionsB;
+	std::vector<MedianRect> *pWorking, *pResult;
 	pWorking = &regionsA;
 	pResult = &regionsB;
 	pWorking->push_back(initRegion);
-	int nMaxIteration = 6;
-	for (int i = 0;i < nMaxIteration;i++) {
+	while(true){
 		// split all region
 		pResult->clear();
 		for (auto& region : *pWorking) {
@@ -389,10 +294,22 @@ void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* im
 			}
 		}
 		// swap index if we have next
-		if (i < nMaxIteration - 1) {
+		if (pResult->size() < numberOfLights) {
 			swap(pWorking, pResult);
 		}
+		else {
+			break;
+		}
 	}
+#if SHOW_DEBUG_INFO
+
+	// copy pixel array for debug
+	RGBSpectrum* clonePixels = new RGBSpectrum[width * height];
+
+	for (int i = 0;i < width * height;i++) {
+		clonePixels[i] = pixels[i];
+	}
+
 	printf("There are %d regions\n", pResult->size());
 
 	for (auto& region : *pResult) {
@@ -404,6 +321,7 @@ void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* im
 	delete[] clonePixels;
 
 #endif
+	// region 
 
 
 
