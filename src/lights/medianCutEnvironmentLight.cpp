@@ -195,31 +195,23 @@ int FindSplitIndexInRect(float* table, int width, int height, MedianRect& rect, 
 }
 
 
-void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* img, int numberOfLights,  int width, int height) {
+void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* raw_table, int numberOfLights,  int width, int height) {
 
 
 
-	// Remember to scale the light intensity with the areas (solid angles)
-	float solidAngleScale = ((2.f * M_PI) / (width - 1)) * ((M_PI) / (height - 1));
-	/*
+	// solid angle scale
+	float solidAngleScale = ((2.f * M_PI) / (width )) * ((M_PI) / (height ));
+	
 	for (int v = 0; v < height; v++) {
 		float sinTheta = sinf(M_PI * float(v + .5f) / float(height));
 		for (int u = 0; u < width; u++)
 			pixels[u + v*width] = pixels[u + v*width] * solidAngleScale * sinTheta;
 	}
-	*/
+	
 
 
 	// build summed area table
-	float* raw_table = new float[width * height];
 	float* summed_table = new float[width * height];
-	for (int i = 0;i < height;i++) {
-		for (int j = 0;j < width;j++) {
-			//raw_table[INDEX_AT(i, j)] = RGBSpectrumToFloat(pixels[INDEX_AT(i, j)]) * solidAngleScale;
-			raw_table[INDEX_AT(i, j)] = img[INDEX_AT(i, j)] * solidAngleScale;
-		}
-	}
-
 	for (int i = 0;i < height;i++) {
 		for (int j = 0;j < width;j++) {
 			// sum from left to current
@@ -335,7 +327,7 @@ void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* im
 		for (int i = region.topLeft.y;i <= region.bottomLeft.y; i++) {
 			for (int j = region.topLeft.x;j <= region.topRight.x;j++) {
 				spectrum += pixels[INDEX_AT(i, j)];
-				float region_val = img[INDEX_AT(i, j)];
+				float region_val = raw_table[INDEX_AT(i, j)];
 				region_sum += region_val;
 				u_sum += region_val * j;
 				v_sum += region_val * i;
@@ -351,7 +343,6 @@ void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* im
 
 	lightPdf = 1.0f / numberOfLights;
 
-	delete[] raw_table;
 	delete[] summed_table;
 }
 
@@ -517,7 +508,7 @@ Spectrum MedianCutEnvironmentLight::Sample_L(const Point &p, float pEpsilon,
 		return 0;
 	}
 	// pick a light
-	auto& light = pointLights[rand() % pointLights.size()];
+	auto& light = pointLights[Floor2Int(ls.uComponent * pointLights.size())];
 
 	// Convert infinite light sample point to direction
 	float theta = light.uv[1] * M_PI, phi = light.uv[0] * 2.f * M_PI;
