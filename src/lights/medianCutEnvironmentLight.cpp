@@ -238,10 +238,12 @@ void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* ra
 	std::vector<MedianRect> regionsA;
 	std::vector<MedianRect> regionsB;
 	std::vector<MedianRect> *pWorking, *pResult;
+	int stopCount = 1;
 	pWorking = &regionsA;
 	pResult = &regionsB;
 	pWorking->push_back(initRegion);
 	while(true){
+		stopCount *= 2;
 		// split all region
 		pResult->clear();
 		for (auto& region : *pWorking) {
@@ -286,7 +288,7 @@ void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* ra
 			}
 		}
 		// swap index if we have next
-		if (pResult->size() < numberOfLights) {
+		if (stopCount < numberOfLights) {
 			swap(pWorking, pResult);
 		}
 		else {
