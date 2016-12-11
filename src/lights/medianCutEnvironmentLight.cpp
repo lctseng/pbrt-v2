@@ -329,17 +329,22 @@ void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* im
 	for (auto& region : *pResult) {
 		// new point light
 		MedianPointLight light;
-		// simple implementation: put in the center
-		light.uv[0] = (region.topLeft.x + region.topRight.x) * 0.5 * scale_u;
-		light.uv[1] = (region.topLeft.y + region.bottomLeft.y) * 0.5 * scale_v;
 		// sum the spectrum
+		float region_sum = 0.f, u_sum = 0.f, v_sum = 0.f;
 		RGBSpectrum spectrum;
 		for (int i = region.topLeft.y;i <= region.bottomLeft.y; i++) {
 			for (int j = region.topLeft.x;j <= region.topRight.x;j++) {
 				spectrum += pixels[INDEX_AT(i, j)];
+				float region_val = img[INDEX_AT(i, j)];
+				region_sum += region_val;
+				u_sum += region_val * j;
+				v_sum += region_val * i;
 			}
 		}
 		light.intensity = spectrum;
+		// compute centroid
+		light.uv[0] = (u_sum / region_sum) * scale_u;
+		light.uv[1] = (v_sum / region_sum) * scale_v;
 		// store new light
 		pointLights.push_back(light);
 	}
