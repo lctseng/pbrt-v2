@@ -321,9 +321,30 @@ void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* im
 	delete[] clonePixels;
 
 #endif
-	// region 
+	// region division is ready
+	// create points light from each region
+	
+	// u, v must to scale to [0,1]
+	float scale_u = 1.f / width, scale_v = 1.f / height;
+	for (auto& region : *pResult) {
+		// new point light
+		MedianPointLight light;
+		// simple implementation: put in the center
+		light.uv[0] = (region.topLeft.x + region.topRight.x) * 0.5 * scale_u;
+		light.uv[1] = (region.topLeft.y + region.bottomLeft.y) * 0.5 * scale_v;
+		// sum the spectrum
+		RGBSpectrum spectrum;
+		for (int i = region.topLeft.y;i <= region.bottomLeft.y; i++) {
+			for (int j = region.topLeft.x;j <= region.topRight.x;j++) {
+				spectrum += pixels[INDEX_AT(i, j)];
+			}
+		}
+		light.intensity = spectrum;
+		// store new light
+		pointLights.push_back(light);
+	}
 
-
+	lightPdf = 1.0f / numberOfLights;
 
 	delete[] raw_table;
 	delete[] summed_table;
@@ -485,34 +506,31 @@ Spectrum MedianCutEnvironmentLight::Sample_L(const Point &p, float pEpsilon,
 	const LightSample &ls, float time, Vector *wi, float *pdf,
 	VisibilityTester *visibility) const {
 	PBRT_INFINITE_LIGHT_STARTED_SAMPLE();
-	// Find $(u,v)$ sample coordinates in infinite light texture
-	float uv[2], mapPdf;
-	distribution->SampleContinuous(ls.uPos[0], ls.uPos[1], uv, &mapPdf);
-	if (mapPdf == 0.f) return 0.f;
+	if (pointLights.empty()) {
+		printf("===Warning: No light available!===");
+		*pdf = 0.0f;
+		return 0;
+	}
+	// pick a light
+	auto& light = pointLights[rand() % pointLights.size()];
 
 	// Convert infinite light sample point to direction
-	float theta = uv[1] * M_PI, phi = uv[0] * 2.f * M_PI;
+	float theta = light.uv[1] * M_PI, phi = light.uv[0] * 2.f * M_PI;
 	float costheta = cosf(theta), sintheta = sinf(theta);
 	float sinphi = sinf(phi), cosphi = cosf(phi);
 	*wi = LightToWorld(Vector(sintheta * cosphi, sintheta * sinphi,
 		costheta));
 
-	// Compute PDF for sampled infinite light direction
-	*pdf = mapPdf / (2.f * M_PI * M_PI * sintheta);
-	if (sintheta == 0.f) *pdf = 0.f;
+	// Set PDF
+	*pdf = lightPdf;
 
-	// Return radiance value for infinite light direction
+	// Set visibility
 	visibility->SetRay(p, pEpsilon, *wi, time);
-	Spectrum Ls = Spectrum(radianceMap->Lookup(uv[0], uv[1]),
+
+	// Return radiance value for infinite light direction	
+	Spectrum Ls = Spectrum(light.intensity,
 		SPECTRUM_ILLUMINANT);
 	PBRT_INFINITE_LIGHT_FINISHED_SAMPLE();
-
-	/*
-	*wi = Normalize(lightPos - p);
-	*pdf = 1.f;
-	visibility->SetSegment(p, pEpsilon, lightPos, 0., time);
-	return Intensity / DistanceSquared(lightPos, p);
-	*/
 
 	return Ls;
 }

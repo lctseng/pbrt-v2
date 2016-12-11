@@ -58,9 +58,9 @@ struct MedianRect {
 	int height()const { return bottomLeft.y - topLeft.y; }
 };
 
-struct MedianPointLigt{
+struct MedianPointLight{
 	Spectrum intensity;
-	Point position;
+	float uv[2];
 };
 
 // InfiniteAreaLight Declarations
@@ -86,7 +86,8 @@ private:
     // InfiniteAreaLight Private Data
     MIPMap<RGBSpectrum> *radianceMap;
     Distribution2D *distribution;
-	vector<MedianPointLigt> pointLights;
+	vector<MedianPointLight> pointLights;
+	float lightPdf;
 };
 
 
