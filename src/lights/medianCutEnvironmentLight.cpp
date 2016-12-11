@@ -83,9 +83,9 @@ MedianCutEnvironmentLight::MedianCutEnvironmentLight(const Transform &light2worl
 		texels = new RGBSpectrum[1];
 		texels[0] = L.ToRGBSpectrum();
 	}
-	CreatePointLights(texels, width, height);
+	
 	radianceMap = new MIPMap<RGBSpectrum>(width, height, texels);
-	delete[] texels;
+	
 	// Initialize sampling PDFs for infinite area light
 
 	// Compute scalar-valued image _img_ from environment map
@@ -103,6 +103,9 @@ MedianCutEnvironmentLight::MedianCutEnvironmentLight(const Transform &light2worl
 
 	// Compute sampling distributions for rows and columns of image
 	distribution = new Distribution2D(img, width, height);
+	CreatePointLights(texels, img, width, height);
+	
+	delete[] texels;
 	delete[] img;
 }
 
@@ -138,7 +141,6 @@ float FindAreaSum(float* table, int width, int height, MedianRect& rect) {
 float RGBSpectrumToFloat(RGBSpectrum& s) {
 	float rgb[3];
 	s.ToRGB(rgb);
-	//return rgb[0] + rgb[1] + rgb[2];
 	return 0.2125 * rgb[0] + 0.7154 * rgb[1] + 0.0721 * rgb[2];
 }
 // find split axis among rect
@@ -193,7 +195,19 @@ int FindSplitIndexInRect(float* table, int width, int height, MedianRect& rect, 
 }
 
 
-void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, int width, int height) {
+void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, float* img, int width, int height) {
+
+
+
+	// Remember to scale the light intensity with the areas (solid angles)
+	float solidAngleScale = ((2.f * M_PI) / (width - 1)) * ((M_PI) / (height - 1));
+	/*
+	for (int v = 0; v < height; v++) {
+		float sinTheta = sinf(M_PI * float(v + .5f) / float(height));
+		for (int u = 0; u < width; u++)
+			pixels[u + v*width] = pixels[u + v*width] * solidAngleScale * sinTheta;
+	}
+	*/
 
 
 	// build summed area table
@@ -201,7 +215,8 @@ void MedianCutEnvironmentLight::CreatePointLights(RGBSpectrum* pixels, int width
 	float* summed_table = new float[width * height];
 	for (int i = 0;i < height;i++) {
 		for (int j = 0;j < width;j++) {
-			raw_table[INDEX_AT(i, j)] = RGBSpectrumToFloat(pixels[INDEX_AT(i, j)]);
+			//raw_table[INDEX_AT(i, j)] = RGBSpectrumToFloat(pixels[INDEX_AT(i, j)]) * solidAngleScale;
+			raw_table[INDEX_AT(i, j)] = img[INDEX_AT(i, j)] * solidAngleScale;
 		}
 	}
 
@@ -573,6 +588,14 @@ Spectrum MedianCutEnvironmentLight::Sample_L(const Point &p, float pEpsilon,
 	Spectrum Ls = Spectrum(radianceMap->Lookup(uv[0], uv[1]),
 		SPECTRUM_ILLUMINANT);
 	PBRT_INFINITE_LIGHT_FINISHED_SAMPLE();
+
+	/*
+	*wi = Normalize(lightPos - p);
+	*pdf = 1.f;
+	visibility->SetSegment(p, pEpsilon, lightPos, 0., time);
+	return Intensity / DistanceSquared(lightPos, p);
+	*/
+
 	return Ls;
 }
 
