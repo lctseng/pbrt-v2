@@ -33,3 +33,5 @@ bin/
 lib/
 
 scenes/*/lightMap*.tif
+
+scenes/*
