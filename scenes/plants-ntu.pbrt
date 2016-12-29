@@ -10,7 +10,7 @@ Renderer "batchsampler"
 Sampler "lowdiscrepancy" "integer pixelsamples" [1]
 PixelFilter "box"
 
-SurfaceIntegrator "path"
+SurfaceIntegrator "batchpath"
 
 VolumeIntegrator "emission" "float stepsize" [16]
 

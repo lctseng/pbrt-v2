@@ -215,6 +215,7 @@
     <ClInclude Include="..\filters\sinc.h" />
     <ClInclude Include="..\filters\triangle.h" />
     <ClInclude Include="..\integrators\ambientocclusion.h" />
+    <ClInclude Include="..\integrators\batchpath.h" />
     <ClInclude Include="..\integrators\diffuseprt.h" />
     <ClInclude Include="..\integrators\dipolesubsurface.h" />
     <ClInclude Include="..\integrators\directlighting.h" />
@@ -1180,6 +1181,7 @@
     <ClCompile Include="..\filters\sinc.cpp" />
     <ClCompile Include="..\filters\triangle.cpp" />
     <ClCompile Include="..\integrators\ambientocclusion.cpp" />
+    <ClCompile Include="..\integrators\batchpath.cpp" />
     <ClCompile Include="..\integrators\diffuseprt.cpp" />
     <ClCompile Include="..\integrators\dipolesubsurface.cpp" />
     <ClCompile Include="..\integrators\directlighting.cpp" />
