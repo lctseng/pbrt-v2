@@ -6,11 +6,12 @@ Film "image"
 
 	
 Renderer "batchsampler"
-	
+SurfaceIntegrator "batchpath"
+
 Sampler "lowdiscrepancy" "integer pixelsamples" [1]
 PixelFilter "box"
 
-SurfaceIntegrator "batchpath"
+
 
 VolumeIntegrator "emission" "float stepsize" [16]
 
