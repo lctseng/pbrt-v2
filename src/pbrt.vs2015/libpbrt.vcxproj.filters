@@ -921,6 +921,9 @@
     <ClInclude Include="..\lights\medianCutEnvironmentLight.h">
       <Filter>Header Files\lights</Filter>
     </ClInclude>
+    <ClInclude Include="..\renderers\batchsamplerrenderer.h">
+      <Filter>Header Files\renderers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\3rdparty\ilmbase-1.0.2\half.cpp">
@@ -1699,6 +1702,9 @@
     </ClCompile>
     <ClCompile Include="..\lights\medianCutEnvironmentLight.cpp">
       <Filter>Source Files\lights</Filter>
+    </ClCompile>
+    <ClCompile Include="..\renderers\batchsamplerrenderer.cpp">
+      <Filter>Source Files\renderers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -93,6 +93,7 @@
 #include "renderers/createprobes.h"
 #include "renderers/metropolis.h"
 #include "renderers/samplerrenderer.h"
+#include "renderers/batchsamplerrenderer.h"
 #include "renderers/surfacepoints.h"
 #include "samplers/adaptive.h"
 #include "samplers/bestcandidate.h"
@@ -1246,6 +1247,25 @@ Renderer *RenderOptions::MakeRenderer() const {
         renderer = CreateSurfacePointsRenderer(RendererParams, pCamera, camera->shutterOpen);
         RendererParams.ReportUnused();
     }
+	else if (RendererName == "batchsampler") {
+		bool visIds = RendererParams.FindOneBool("visualizeobjectids", false);
+		RendererParams.ReportUnused();
+		Sampler *sampler = MakeSampler(SamplerName, SamplerParams, camera->film, camera);
+		if (!sampler) Severe("Unable to create sampler.");
+		// Create surface and volume integrators
+		SurfaceIntegrator *surfaceIntegrator = MakeSurfaceIntegrator(SurfIntegratorName,
+			SurfIntegratorParams);
+		if (!surfaceIntegrator) Severe("Unable to create surface integrator.");
+		VolumeIntegrator *volumeIntegrator = MakeVolumeIntegrator(VolIntegratorName,
+			VolIntegratorParams);
+		if (!volumeIntegrator) Severe("Unable to create volume integrator.");
+		renderer = new BatchSamplerRenderer(sampler, camera, surfaceIntegrator,
+			volumeIntegrator, visIds);
+		// Warn if no light sources are defined
+		if (lights.size() == 0)
+			Warning("No light sources defined in scene; "
+				"possibly rendering a black image.");
+	}
     else {
         if (RendererName != "sampler")
             Warning("Renderer type \"%s\" unknown.  Using \"sampler\".",

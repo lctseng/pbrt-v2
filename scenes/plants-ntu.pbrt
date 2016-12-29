@@ -4,6 +4,9 @@ Film "image"
 	"integer xresolution" [800] "integer yresolution" [400]
     "string filename" "plants-ntu.exr"
 
+	
+Renderer "batchsampler"
+	
 Sampler "lowdiscrepancy" "integer pixelsamples" [1]
 PixelFilter "box"
 
