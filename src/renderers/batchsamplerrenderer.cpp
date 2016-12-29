@@ -141,7 +141,7 @@ void BatchSamplerRenderer::Render(const Scene *scene) {
     // Compute number of _BatchSamplerRendererTask_s to create for rendering
     int nPixels = camera->film->xResolution * camera->film->yResolution;
     int nTasks = max(32 * NumSystemCores(), nPixels / (16*16));
-	nTasks = nPixels / 10000;
+	nTasks = 1;//nPixels / 10000;
 	nTasks = RoundUpPow2(nTasks);
     ProgressReporter reporter(nTasks, "Rendering");
     vector<Task *> renderTasks;
@@ -255,8 +255,10 @@ void BatchSamplerRendererQueue::LaunchLiProcess() {
 			Spectrum T;
 			Spectrum L;
 			if (rayWeights[i] > 0.f) {
+				//auto start = std::chrono::high_resolution_clock::now();
 				Spectrum Li = 0.f;
 				if (hits[i]) {
+					
 					Li = renderer->surfaceIntegrator->Li(render_task->scene, renderer, rays[i], isects[i], &samples[i],
 						rng, arena);
 				}
@@ -264,6 +266,7 @@ void BatchSamplerRendererQueue::LaunchLiProcess() {
 					for (uint32_t j = 0; j < render_task->scene->lights.size(); ++j)
 						Li += render_task->scene->lights[j]->Le(rays[i]);
 				}
+				
 				Spectrum Lvi = renderer->volumeIntegrator->Li(render_task->scene, renderer, rays[i], &samples[i], rng,
 					&T, arena);
 				L = T * Li + Lvi;
@@ -283,6 +286,8 @@ void BatchSamplerRendererQueue::LaunchLiProcess() {
 						"for image sample.  Setting to black.");
 					L = Spectrum(0.f);
 				}
+				//auto delta = std::chrono::high_resolution_clock::now() - start;
+				//time += std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
 			}
 			else {
 				L = 0.f;
@@ -297,7 +302,12 @@ void BatchSamplerRendererQueue::LaunchLiProcess() {
 }
 
 void BatchSamplerRendererQueue::LaunchIntersection() {
+	printf("\nPrimary intersection started\n");
+	auto start = std::chrono::high_resolution_clock::now();
 	for (int i = 0;i < taskNum;i++) {
 		hits[i] = render_task->scene->Intersect(rays[i], &isects[i]);
 	}
+	auto delta = std::chrono::high_resolution_clock::now() - start;
+	auto time = std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
+	printf("\nPrimary intersection used: %lld ms\n", time);
 }

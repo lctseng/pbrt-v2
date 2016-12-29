@@ -41,6 +41,8 @@
 #include "renderer.h"
 #include "parallel.h"
 
+#include <chrono>
+
 // BatchSamplerRenderer Declarations
 class BatchSamplerRenderer : public Renderer {
 	friend class BatchSamplerRendererQueue;
@@ -129,6 +131,8 @@ public:
 	const BatchSamplerRenderer* renderer;
 
 	RNG& rng;
+
+	long long totalIntersectionTime;
 };
 
 
