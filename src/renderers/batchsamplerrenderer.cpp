@@ -69,80 +69,35 @@ void BatchSamplerRendererTask::Run() {
     }
 
     // Declare local variables used for rendering loop
-    MemoryArena arena;
     RNG rng(taskNum);
 
     // Allocate space for samples and intersections
     int maxSamples = sampler->MaximumSampleCount();
-    Sample *samples = origSample->Duplicate(maxSamples);
-    RayDifferential *rays = new RayDifferential[maxSamples];
-    Spectrum *Ls = new Spectrum[maxSamples];
-    Spectrum *Ts = new Spectrum[maxSamples];
-    Intersection *isects = new Intersection[maxSamples];
+
+	BatchSamplerRendererQueue queue(this, maxSamples, rng);
+	Sample* samples;
+	RayDifferential* rays;
+	float* rayWeights;
 
     // Get samples from _Sampler_ and update image
     int sampleCount;
-    while ((sampleCount = sampler->GetMoreSamples(samples, rng)) > 0) {
+	while (samples = queue.RequireSampleSpace(),(sampleCount = sampler->GetMoreSamples(samples, rng)) > 0) {
+		rays = queue.RequireRaySpace();
+		rayWeights = queue.RequireRayWeightSpace();
         // Generate camera rays and compute radiance along rays
         for (int i = 0; i < sampleCount; ++i) {
             // Find camera ray for _sample[i]_
-            PBRT_STARTED_GENERATING_CAMERA_RAY(&samples[i]);
-            float rayWeight = camera->GenerateRayDifferential(samples[i], &rays[i]);
+			rayWeights[i] = camera->GenerateRayDifferential(samples[i], &rays[i]);
             rays[i].ScaleDifferentials(1.f / sqrtf(sampler->samplesPerPixel));
-            PBRT_FINISHED_GENERATING_CAMERA_RAY(&samples[i], &rays[i], rayWeight);
-
-            // Evaluate radiance along camera ray
-            PBRT_STARTED_CAMERA_RAY_INTEGRATION(&rays[i], &samples[i]);
-            
-            if (rayWeight > 0.f)
-                Ls[i] = rayWeight * renderer->Li(scene, rays[i], &samples[i], rng,
-                                                 arena, &isects[i], &Ts[i]);
-            else {
-                Ls[i] = 0.f;
-                Ts[i] = 1.f;
-            }
-
-            // Issue warning if unexpected radiance value returned
-            if (Ls[i].HasNaNs()) {
-                Error("Not-a-number radiance value returned "
-                      "for image sample.  Setting to black.");
-                Ls[i] = Spectrum(0.f);
-            }
-            else if (Ls[i].y() < -1e-5) {
-                Error("Negative luminance value, %f, returned "
-                      "for image sample.  Setting to black.", Ls[i].y());
-                Ls[i] = Spectrum(0.f);
-            }
-            else if (isinf(Ls[i].y())) {
-                Error("Infinite luminance value returned "
-                      "for image sample.  Setting to black.");
-                Ls[i] = Spectrum(0.f);
-            }
-            PBRT_FINISHED_CAMERA_RAY_INTEGRATION(&rays[i], &samples[i], &Ls[i]);
         }
-
-
-        for (int i = 0; i < sampleCount; ++i)
-        {
-            PBRT_STARTED_ADDING_IMAGE_SAMPLE(&samples[i], &rays[i], &Ls[i], &Ts[i]);
-            camera->film->AddSample(samples[i], Ls[i]);
-            PBRT_FINISHED_ADDING_IMAGE_SAMPLE();
-        }
-
-
-        // Free _MemoryArena_ memory from computing image sample values
-        arena.FreeAll();
+		queue.CommitLiRequest(sampleCount);
     }
+	queue.Flush();
 
     // Clean up after _BatchSamplerRendererTask_ is done with its image region
     camera->film->UpdateDisplay(sampler->xPixelStart,
         sampler->yPixelStart, sampler->xPixelEnd+1, sampler->yPixelEnd+1);
     delete sampler;
-    delete[] samples;
-    delete[] rays;
-    delete[] Ls;
-    delete[] Ts;
-    delete[] isects;
     reporter.Update();
     PBRT_FINISHED_RENDERTASK(taskNum);
 }
@@ -186,7 +141,8 @@ void BatchSamplerRenderer::Render(const Scene *scene) {
     // Compute number of _BatchSamplerRendererTask_s to create for rendering
     int nPixels = camera->film->xResolution * camera->film->yResolution;
     int nTasks = max(32 * NumSystemCores(), nPixels / (16*16));
-    nTasks = RoundUpPow2(nTasks);
+	nTasks = nPixels / 10000;
+	nTasks = RoundUpPow2(nTasks);
     ProgressReporter reporter(nTasks, "Rendering");
     vector<Task *> renderTasks;
     for (int i = 0; i < nTasks; ++i)
@@ -238,13 +194,16 @@ Spectrum BatchSamplerRenderer::Transmittance(const Scene *scene,
                                            rng, arena);
 }
 
-BatchSamplerRendererQueue::BatchSamplerRendererQueue(BatchSamplerRendererTask* render_task, int maxSample):
-render_task(render_task),maxSample(maxSample)
+BatchSamplerRendererQueue::BatchSamplerRendererQueue(BatchSamplerRendererTask* render_task, int maxSample, RNG& rng):
+render_task(render_task),maxSample(maxSample),rng(rng)
 {
-	int minSpace = min(maxSample, BATCH_RENDER_SIZE);
+	int minSpace = max(maxSample, BATCH_RENDER_SIZE);
 	samples = render_task->origSample->Duplicate(minSpace);
 	rays = new RayDifferential[minSpace];
 	isects = new Intersection[minSpace];
+	rayWeights = new float[minSpace];
+	hits = new bool[minSpace];
+	renderer = dynamic_cast<const BatchSamplerRenderer*>(render_task->renderer);
 	taskNum = 0;
 }
 
@@ -252,6 +211,8 @@ BatchSamplerRendererQueue::~BatchSamplerRendererQueue() {
 	delete[] samples;
 	delete[] rays;
 	delete[] isects;
+	delete[] rayWeights;
+	delete[] hits;
 }
 
 RayDifferential* BatchSamplerRendererQueue::RequireRaySpace() {
@@ -262,4 +223,81 @@ Intersection* BatchSamplerRendererQueue::RequireIntersectionSpace() {
 }
 Sample* BatchSamplerRendererQueue::RequireSampleSpace() {
 	return samples + taskNum;
+}
+float* BatchSamplerRendererQueue::RequireRayWeightSpace() {
+	return rayWeights + taskNum;
+}
+bool* BatchSamplerRendererQueue::RequireHitSpace() {
+	return hits + taskNum;
+}
+
+void BatchSamplerRendererQueue::CommitLiRequest(int count) {
+	taskNum += count;
+	if (taskNum >= BATCH_RENDER_SIZE) {
+		LaunchLiProcess();
+	}
+}
+void BatchSamplerRendererQueue::WaitForRequest() {
+	
+}
+
+void BatchSamplerRendererQueue::Flush() {
+	LaunchLiProcess();
+	WaitForRequest();
+}
+void BatchSamplerRendererQueue::LaunchLiProcess() {
+	if (taskNum > 0) {
+		//printf("Launch: %d tasks\n", taskNum);
+		LaunchIntersection();
+		// do Li
+		MemoryArena arena;
+		for (int i = 0;i < taskNum;i++) {
+			Spectrum T;
+			Spectrum L;
+			if (rayWeights[i] > 0.f) {
+				Spectrum Li = 0.f;
+				if (hits[i]) {
+					Li = renderer->surfaceIntegrator->Li(render_task->scene, renderer, rays[i], isects[i], &samples[i],
+						rng, arena);
+				}
+				else {
+					for (uint32_t j = 0; j < render_task->scene->lights.size(); ++j)
+						Li += render_task->scene->lights[j]->Le(rays[i]);
+				}
+				Spectrum Lvi = renderer->volumeIntegrator->Li(render_task->scene, renderer, rays[i], &samples[i], rng,
+					&T, arena);
+				L = T * Li + Lvi;
+				// Issue warning if unexpected radiance value returned
+				if (L.HasNaNs()) {
+					Error("Not-a-number radiance value returned "
+						"for image sample.  Setting to black.");
+					L = Spectrum(0.f);
+				}
+				else if (L.y() < -1e-5) {
+					Error("Negative luminance value, %f, returned "
+						"for image sample.  Setting to black.", L.y());
+					L = Spectrum(0.f);
+				}
+				else if (isinf(L.y())) {
+					Error("Infinite luminance value returned "
+						"for image sample.  Setting to black.");
+					L = Spectrum(0.f);
+				}
+			}
+			else {
+				L = 0.f;
+				T = 1.f;
+			}
+
+			render_task->camera->film->AddSample(samples[i], L);
+			arena.FreeAll();
+		}
+		taskNum = 0;
+	}
+}
+
+void BatchSamplerRendererQueue::LaunchIntersection() {
+	for (int i = 0;i < taskNum;i++) {
+		hits[i] = render_task->scene->Intersect(rays[i], &isects[i]);
+	}
 }

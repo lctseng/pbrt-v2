@@ -43,6 +43,7 @@
 
 // BatchSamplerRenderer Declarations
 class BatchSamplerRenderer : public Renderer {
+	friend class BatchSamplerRendererQueue;
 public:
     // BatchSamplerRenderer Public Methods
     BatchSamplerRenderer(Sampler *s, Camera *c, SurfaceIntegrator *si,
@@ -92,22 +93,27 @@ private:
 };
 
 
-#define BATCH_RENDER_SIZE 1
+#define BATCH_RENDER_SIZE 10000
 
 class BatchSamplerRendererQueue {
 public:
 
-	BatchSamplerRendererQueue(BatchSamplerRendererTask* render_task, int maxSample);
+	BatchSamplerRendererQueue(BatchSamplerRendererTask* render_task, int maxSample, RNG& rng);
 	~BatchSamplerRendererQueue();
 
-	//void AddLiRequest(const RayDifferential &ray,
-	//	const Sample *sample) const;
-	//void WaitForRequest();
+	void CommitLiRequest(int count);
+	void WaitForRequest();
+	void Flush();
+
+	void LaunchLiProcess();
+
+	void LaunchIntersection();
 
 	RayDifferential* RequireRaySpace();
 	Intersection* RequireIntersectionSpace();
 	Sample* RequireSampleSpace();
-
+	float* RequireRayWeightSpace();
+	bool* RequireHitSpace();
 
 	int taskNum;
 	int maxSample;
@@ -117,6 +123,12 @@ public:
 	RayDifferential* rays;
 	Intersection* isects;
 	Sample* samples;
+	float* rayWeights;
+	bool* hits;
+
+	const BatchSamplerRenderer* renderer;
+
+	RNG& rng;
 };
 
 
