@@ -93,20 +93,7 @@ void BatchSamplerRendererTask::Run() {
 
             // Evaluate radiance along camera ray
             PBRT_STARTED_CAMERA_RAY_INTEGRATION(&rays[i], &samples[i]);
-            if (visualizeObjectIds) {
-                if (rayWeight > 0.f && scene->Intersect(rays[i], &isects[i])) {
-                    // random shading based on shape id...
-                    uint32_t ids[2] = { isects[i].shapeId, isects[i].primitiveId };
-                    uint32_t h = hash((char *)ids, sizeof(ids));
-                    float rgb[3] = { float(h & 0xff), float((h >> 8) & 0xff),
-                                     float((h >> 16) & 0xff) };
-                    Ls[i] = Spectrum::FromRGB(rgb);
-                    Ls[i] /= 255.f;
-                }
-                else
-                    Ls[i] = 0.f;
-            }
-            else {
+            
             if (rayWeight > 0.f)
                 Ls[i] = rayWeight * renderer->Li(scene, rays[i], &samples[i], rng,
                                                  arena, &isects[i], &Ts[i]);
@@ -131,20 +118,17 @@ void BatchSamplerRendererTask::Run() {
                       "for image sample.  Setting to black.");
                 Ls[i] = Spectrum(0.f);
             }
-            }
             PBRT_FINISHED_CAMERA_RAY_INTEGRATION(&rays[i], &samples[i], &Ls[i]);
         }
 
-        // Report sample results to _Sampler_, add contributions to image
-        if (sampler->ReportResults(samples, rays, Ls, isects, sampleCount))
+
+        for (int i = 0; i < sampleCount; ++i)
         {
-            for (int i = 0; i < sampleCount; ++i)
-            {
-                PBRT_STARTED_ADDING_IMAGE_SAMPLE(&samples[i], &rays[i], &Ls[i], &Ts[i]);
-                camera->film->AddSample(samples[i], Ls[i]);
-                PBRT_FINISHED_ADDING_IMAGE_SAMPLE();
-            }
+            PBRT_STARTED_ADDING_IMAGE_SAMPLE(&samples[i], &rays[i], &Ls[i], &Ts[i]);
+            camera->film->AddSample(samples[i], Ls[i]);
+            PBRT_FINISHED_ADDING_IMAGE_SAMPLE();
         }
+
 
         // Free _MemoryArena_ memory from computing image sample values
         arena.FreeAll();
@@ -225,25 +209,25 @@ void BatchSamplerRenderer::Render(const Scene *scene) {
 Spectrum BatchSamplerRenderer::Li(const Scene *scene,
         const RayDifferential &ray, const Sample *sample, RNG &rng,
         MemoryArena &arena, Intersection *isect, Spectrum *T) const {
-    Assert(ray.time == sample->time);
-    Assert(!ray.HasNaNs());
-    // Allocate local variables for _isect_ and _T_ if needed
-    Spectrum localT;
-    if (!T) T = &localT;
-    Intersection localIsect;
-    if (!isect) isect = &localIsect;
-    Spectrum Li = 0.f;
-    if (scene->Intersect(ray, isect))
-        Li = surfaceIntegrator->Li(scene, this, ray, *isect, sample,
-                                   rng, arena);
-    else {
-        // Handle ray that doesn't intersect any geometry
-        for (uint32_t i = 0; i < scene->lights.size(); ++i)
-           Li += scene->lights[i]->Le(ray);
-    }
-    Spectrum Lvi = volumeIntegrator->Li(scene, this, ray, sample, rng,
-                                        T, arena);
-    return *T * Li + Lvi;
+	Assert(ray.time == sample->time);
+	Assert(!ray.HasNaNs());
+	// Allocate local variables for _isect_ and _T_ if needed
+	Spectrum localT;
+	if (!T) T = &localT;
+	Intersection localIsect;
+	if (!isect) isect = &localIsect;
+	Spectrum Li = 0.f;
+	if (scene->Intersect(ray, isect))
+		Li = surfaceIntegrator->Li(scene, this, ray, *isect, sample,
+			rng, arena);
+	else {
+		// Handle ray that doesn't intersect any geometry
+		for (uint32_t i = 0; i < scene->lights.size(); ++i)
+			Li += scene->lights[i]->Le(ray);
+	}
+	Spectrum Lvi = volumeIntegrator->Li(scene, this, ray, sample, rng,
+		T, arena);
+	return *T * Li + Lvi;
 }
 
 
@@ -254,4 +238,28 @@ Spectrum BatchSamplerRenderer::Transmittance(const Scene *scene,
                                            rng, arena);
 }
 
+BatchSamplerRendererQueue::BatchSamplerRendererQueue(BatchSamplerRendererTask* render_task, int maxSample):
+render_task(render_task),maxSample(maxSample)
+{
+	int minSpace = min(maxSample, BATCH_RENDER_SIZE);
+	samples = render_task->origSample->Duplicate(minSpace);
+	rays = new RayDifferential[minSpace];
+	isects = new Intersection[minSpace];
+	taskNum = 0;
+}
 
+BatchSamplerRendererQueue::~BatchSamplerRendererQueue() {
+	delete[] samples;
+	delete[] rays;
+	delete[] isects;
+}
+
+RayDifferential* BatchSamplerRendererQueue::RequireRaySpace() {
+	return rays + taskNum;
+}
+Intersection* BatchSamplerRendererQueue::RequireIntersectionSpace() {
+	return isects + taskNum;
+}
+Sample* BatchSamplerRendererQueue::RequireSampleSpace() {
+	return samples + taskNum;
+}

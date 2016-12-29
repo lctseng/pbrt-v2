@@ -67,6 +67,7 @@ private:
 
 // BatchSamplerRendererTask Declarations
 class BatchSamplerRendererTask : public Task {
+	friend class BatchSamplerRendererQueue;
 public:
     // BatchSamplerRendererTask Public Methods
     BatchSamplerRendererTask(const Scene *sc, Renderer *ren, Camera *c,
@@ -90,6 +91,33 @@ private:
     int taskNum, taskCount;
 };
 
+
+#define BATCH_RENDER_SIZE 1
+
+class BatchSamplerRendererQueue {
+public:
+
+	BatchSamplerRendererQueue(BatchSamplerRendererTask* render_task, int maxSample);
+	~BatchSamplerRendererQueue();
+
+	//void AddLiRequest(const RayDifferential &ray,
+	//	const Sample *sample) const;
+	//void WaitForRequest();
+
+	RayDifferential* RequireRaySpace();
+	Intersection* RequireIntersectionSpace();
+	Sample* RequireSampleSpace();
+
+
+	int taskNum;
+	int maxSample;
+
+	BatchSamplerRendererTask* render_task;
+
+	RayDifferential* rays;
+	Intersection* isects;
+	Sample* samples;
+};
 
 
 #endif // PBRT_RENDERERS_SAMPLERRENDERER_H
