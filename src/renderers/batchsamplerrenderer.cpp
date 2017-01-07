@@ -205,7 +205,6 @@ render_task(render_task),maxSample(maxSample),rng(rng)
 
 	samples = render_task->origSample->Duplicate(minSpace);
 	rays = new RayDifferential[minSpace];
-	isects = new Intersection[minSpace];
 	rayWeights = new float[minSpace];
 	hits = new bool[minSpace];
 	arenas = new MemoryArena[minSpace];
@@ -219,7 +218,6 @@ render_task(render_task),maxSample(maxSample),rng(rng)
 BatchSamplerRendererQueue::~BatchSamplerRendererQueue() {
 	delete[] samples;
 	delete[] rays;
-	delete[] isects;
 	delete[] rayWeights;
 	delete[] hits;
 	delete[] arenas;
@@ -231,9 +229,6 @@ BatchSamplerRendererQueue::~BatchSamplerRendererQueue() {
 
 RayDifferential* BatchSamplerRendererQueue::RequireRaySpace() {
 	return rays + taskNum;
-}
-Intersection* BatchSamplerRendererQueue::RequireIntersectionSpace() {
-	return isects + taskNum;
 }
 Sample* BatchSamplerRendererQueue::RequireSampleSpace() {
 	return samples + taskNum;
@@ -261,7 +256,6 @@ void BatchSamplerRendererQueue::Flush() {
 }
 void BatchSamplerRendererQueue::LaunchLiProcess() {
 	if (taskNum > 0) {
-		//LaunchPrimaryRayIntersection();
 		// do no-weight ray
 		LaunchNoWeightRayProcess();
 		// do Li for hit
@@ -279,16 +273,6 @@ void BatchSamplerRendererQueue::LaunchLiProcess() {
 		}
 		taskNum = 0;
 	}
-}
-
-
-
-void BatchSamplerRendererQueue::LaunchPrimaryRayIntersection() {
-	BEGIN_TIMING(LaunchPrimaryRayIntersection);
-	for (int i = 0;i < taskNum;i++) {
-		hits[i] = render_task->scene->Intersect(rays[i], &isects[i]);
-	}
-	END_TIMING(LaunchPrimaryRayIntersection);
 }
 
 void BatchSamplerRendererQueue::LaunchSurfaceIntegration() {

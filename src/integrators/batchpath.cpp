@@ -48,9 +48,20 @@ void BatchPathIntegrator::RequestSamples(Sampler *sampler, Sample *sample,
 	}
 }
 
+void BatchPathIntegrator::BatchIntersecrion(const Scene *scene, int batchSize, bool* hits, const RayDifferential* rays, Intersection* isects, float* rayWeights) const {
+	for (int i = 0;i < batchSize;i++) {
+		if(rayWeights[i] > 0.f){
+			hits[i] = scene->Intersect(rays[i], &isects[i]);
+		}
+	}
+}
+
 void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, int batchSize,
 	const RayDifferential* original_rays, const Sample *samples, RNG &rng, MemoryArena* arenas, bool* hits, Spectrum* Ls, float* rayWeights) const {
 	// Declare common path integration variables
+	bool* localHits = new bool[batchSize];
+	Intersection* isects = new Intersection[batchSize];
+	BatchIntersecrion(scene, batchSize, hits, original_rays, isects, rayWeights);
 	for (int i = 0;i < batchSize;i++) {
 		if (rayWeights[i] > 0.0f) {
 			RayDifferential ray(original_rays[i]);
@@ -60,12 +71,10 @@ void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, 
 			L = 0.;
 
 			bool specularBounce = false;
-			Intersection localIsect;
-			Intersection *isectp = &localIsect;
+			Intersection *isectp = &isects[i];
 			MemoryArena& arena = arenas[i];
 			auto sample = samples + i;
 
-			hits[i] = scene->Intersect(original_rays[i], isectp);
 			if (hits[i]) {
 				for (int bounces = 0; ; ++bounces) {
 					// Possibly add emitted light at path vertex
@@ -119,18 +128,20 @@ void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, 
 						break;
 
 					// Find next vertex of path
-					if (!scene->Intersect(ray, &localIsect)) {
+					if (!scene->Intersect(ray, &isects[i])) {
 						if (specularBounce)
 							for (uint32_t i = 0; i < scene->lights.size(); ++i)
 								L += pathThroughput * scene->lights[i]->Le(ray);
 						break;
 					}
 					pathThroughput *= renderer->Transmittance(scene, ray, NULL, rng, arena);
-					isectp = &localIsect;
+					isectp = &isects[i];
 				}
 			}
 		}
 	}
+	delete[] localHits;
+	delete[] isects;
 }
 
 

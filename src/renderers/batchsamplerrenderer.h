@@ -109,7 +109,6 @@ public:
 
 	void LaunchLiProcess();
 
-	void LaunchPrimaryRayIntersection();
 	void LaunchSurfaceIntegration();
 	void LaunchNoWeightRayProcess();
 	void LaunchMissedRayProcess();
@@ -118,7 +117,6 @@ public:
 
 
 	RayDifferential* RequireRaySpace();
-	Intersection* RequireIntersectionSpace();
 	Sample* RequireSampleSpace();
 	float* RequireRayWeightSpace();
 	bool* RequireHitSpace();
@@ -136,7 +134,6 @@ public:
 	// internals
 	bool* hits;
 	MemoryArena* arenas;
-	Intersection* isects;
 	Spectrum* Lis;
 	Spectrum* Lvis;
 	Spectrum* Ls;
