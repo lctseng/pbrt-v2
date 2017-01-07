@@ -67,8 +67,8 @@ public:
     virtual Spectrum Li(const Scene *scene, const Renderer *renderer,
         const RayDifferential &ray, const Intersection &isect,
         const Sample *sample, RNG &rng, MemoryArena &arena) const = 0;
-	virtual Spectrum BatchLi(const Scene *scene, const Renderer *renderer,
-		const RayDifferential &ray, const Sample *sample, RNG &rng, MemoryArena &arena, bool* pHit) const ;
+	virtual void BatchLi(const Scene *scene, const Renderer *renderer, int batchSize, 
+		const RayDifferential* rays, const Sample *samples, RNG &rng, MemoryArena* arenas, bool* hits, Spectrum* Ls, float* rayWeights) const ;
 };
 
 

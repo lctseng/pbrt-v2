@@ -42,8 +42,8 @@ Integrator::~Integrator() {
 }
 
 
-Spectrum SurfaceIntegrator::BatchLi(const Scene *scene, const Renderer *renderer,
-	const RayDifferential &ray, const Sample *sample, RNG &rng, MemoryArena &arena, bool* pHit) const {
+void SurfaceIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, int batchSize,
+	const RayDifferential* rays, const Sample *samples, RNG &rng, MemoryArena* arenas, bool* hits, Spectrum* Ls, float* rayWeights) const {
 	throw("Not implemented");
 }
 

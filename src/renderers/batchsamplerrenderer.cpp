@@ -293,12 +293,7 @@ void BatchSamplerRendererQueue::LaunchPrimaryRayIntersection() {
 
 void BatchSamplerRendererQueue::LaunchSurfaceIntegration() {
 	BEGIN_TIMING(LaunchSurfaceIntegration);
-	for (int i = 0;i < taskNum;i++) {
-		if (rayWeights[i] > 0.f) {
-			Spectrum& Li = Lis[i];
-			Li = renderer->surfaceIntegrator->BatchLi(render_task->scene, renderer, rays[i], &samples[i],rng, arenas[i], &hits[i]);
-		}
-	}
+	renderer->surfaceIntegrator->BatchLi(render_task->scene, renderer, taskNum, rays, samples, rng, arenas, hits, Lis, rayWeights);
 	END_TIMING(LaunchSurfaceIntegration);
 }
 
