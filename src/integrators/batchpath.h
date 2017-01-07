@@ -53,7 +53,7 @@ public:
 		const RayDifferential* rays, const Sample *samples, RNG &rng, MemoryArena* arenas, bool* hits, Spectrum* Ls, float* rayWeights) const;
     void RequestSamples(Sampler *sampler, Sample *sample, const Scene *scene);
     BatchPathIntegrator(int md) { maxDepth = md; }
-	void BatchIntersecrion(const Scene *scene, int batchSize, bool* hits, const RayDifferential* rays, Intersection* isects, float* rayWeights) const;
+	void BatchIntersecrion(const Scene *scene, int batchSize, bool* hits, const RayDifferential* rays, Intersection* isects, bool* validRayFlags) const;
 private:
     // BatchPathIntegrator Private Data
     int maxDepth;
