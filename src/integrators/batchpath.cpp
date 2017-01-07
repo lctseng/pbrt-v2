@@ -61,18 +61,33 @@ void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, 
 	// Declare common path integration variables
 	bool* localHits = new bool[batchSize];
 	Intersection* isects = new Intersection[batchSize];
+	RayDifferential* localRays = new RayDifferential[batchSize];
+	Spectrum* pathThroughputs = new Spectrum[batchSize];
+	bool* specularBounces = new bool[batchSize];
+
+	// batch primary intersection
 	BatchIntersecrion(scene, batchSize, hits, original_rays, isects, rayWeights);
+	
+	// init
+	for (int i = 0;i < batchSize;i++) {
+		if (rayWeights[i] > 0.f) {
+			pathThroughputs[i] = 1.;
+			Ls[i] = 0.;
+			localRays[i] = std::move(RayDifferential(original_rays[i]));
+			specularBounces[i] = false;
+		}
+	}
+
 	for (int i = 0;i < batchSize;i++) {
 		if (rayWeights[i] > 0.0f) {
-			RayDifferential ray(original_rays[i]);
+			
+			auto& pathThroughput = pathThroughputs[i];
+			auto& specularBounce = specularBounces[i];
+			auto& ray = localRays[i];
+			auto& L = Ls[i];
+			auto& arena = arenas[i];
 
-			Spectrum pathThroughput = 1.;
-			Spectrum& L = Ls[i];
-			L = 0.;
-
-			bool specularBounce = false;
 			Intersection *isectp = &isects[i];
-			MemoryArena& arena = arenas[i];
 			auto sample = samples + i;
 
 			if (hits[i]) {
@@ -135,13 +150,15 @@ void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, 
 						break;
 					}
 					pathThroughput *= renderer->Transmittance(scene, ray, NULL, rng, arena);
-					isectp = &isects[i];
 				}
 			}
 		}
 	}
 	delete[] localHits;
 	delete[] isects;
+	delete[] localRays;
+	delete[] pathThroughputs;
+	delete[] specularBounces;
 }
 
 
