@@ -282,17 +282,17 @@ void BatchSamplerRendererQueue::LaunchSurfaceIntegration() {
 }
 
 void BatchSamplerRendererQueue::LaunchNoWeightRayProcess() {
-	BEGIN_TIMING(LaunchNoWeightRayProcess);
+	//BEGIN_TIMING(LaunchNoWeightRayProcess);
 	for (int i = 0;i < taskNum;i++) {
 		if (rayWeights[i] <= 0.f) {
 			Ls[i] = 0.f;
 			Ts[i] = 1.f;
 		}
 	}
-	END_TIMING(LaunchNoWeightRayProcess);
+	//END_TIMING(LaunchNoWeightRayProcess);
 }
 void BatchSamplerRendererQueue::LaunchMissedRayProcess() {
-	BEGIN_TIMING(LaunchMissedRayProcess);
+	//BEGIN_TIMING(LaunchMissedRayProcess);
 	for (int i = 0;i < taskNum;i++) {
 		if (rayWeights[i] > 0.f) {
 			if (!hits[i]) {
@@ -304,21 +304,21 @@ void BatchSamplerRendererQueue::LaunchMissedRayProcess() {
 			}
 		}
 	}
-	END_TIMING(LaunchMissedRayProcess);
+	//END_TIMING(LaunchMissedRayProcess);
 }
 void BatchSamplerRendererQueue::LaunchVolumeIntegration() {
-	BEGIN_TIMING(LaunchVolumeIntegration);
+	//BEGIN_TIMING(LaunchVolumeIntegration);
 	for (int i = 0;i < taskNum;i++) {
 		if (rayWeights[i] > 0.f) {
 			Lvis[i] = renderer->volumeIntegrator->Li(render_task->scene, renderer, rays[i], &samples[i], rng,
 				&Ts[i], arenas[i]);
 		}
 	}
-	END_TIMING(LaunchVolumeIntegration);
+	//END_TIMING(LaunchVolumeIntegration);
 }
 
 void BatchSamplerRendererQueue::LaunchCombineProcess() {
-	BEGIN_TIMING(LaunchCombineProcess);
+	//BEGIN_TIMING(LaunchCombineProcess);
 	for (int i = 0;i < taskNum;i++) {
 		if (rayWeights[i] > 0.f) {
 			Ls[i] = Ts[i] * Lis[i] + Lvis[i];
@@ -340,5 +340,5 @@ void BatchSamplerRendererQueue::LaunchCombineProcess() {
 			}
 		}
 	}
-	END_TIMING(LaunchCombineProcess);
+	//END_TIMING(LaunchCombineProcess);
 }

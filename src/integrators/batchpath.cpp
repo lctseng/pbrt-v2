@@ -49,11 +49,13 @@ void BatchPathIntegrator::RequestSamples(Sampler *sampler, Sample *sample,
 }
 
 void BatchPathIntegrator::BatchIntersecrion(const Scene *scene, int batchSize, bool* hits, const RayDifferential* rays, Intersection* isects, bool* validRayFlags) const {
+	BEGIN_TIMING(Intergrator_BatchIntersecrion);
 	for (int i = 0;i < batchSize;i++) {
 		if (validRayFlags[i]) {
 			hits[i] = scene->Intersect(rays[i], &isects[i]);
 		}
 	}
+	END_TIMING(Intergrator_BatchIntersecrion);
 }
 
 void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, int batchSize,
@@ -91,6 +93,7 @@ void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, 
 		if (bounces > 0) {
 			BatchIntersecrion(scene, batchSize, localHits, localRays, isects, validRayFlags);
 		}
+		BEGIN_TIMING(Intergrator_BatchBSDF);
 		for (int i = 0;i < batchSize;i++) {
 			auto& pathThroughput = pathThroughputs[i];
 			auto& specularBounce = specularBounces[i];
@@ -170,6 +173,8 @@ void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, 
 				validRayFlags[i] = validRayFlags[i] && localHits[i];
 			}
 		}
+		END_TIMING(Intergrator_BatchBSDF);
+
 	}
 	delete[] localHits;
 	delete[] isects;
