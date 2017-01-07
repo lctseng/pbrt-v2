@@ -261,71 +261,17 @@ void BatchSamplerRendererQueue::Flush() {
 }
 void BatchSamplerRendererQueue::LaunchLiProcess() {
 	if (taskNum > 0) {
-		//printf("Launch: %d tasks\n", taskNum);
-		LaunchIntersection();
-		// do Li
+		LaunchPrimaryRayIntersection();
 		// do no-weight ray
-		for (int i = 0;i < taskNum;i++) {
-			if (rayWeights[i] <= 0.f) {
-				Ls[i] = 0.f;
-				Ts[i] = 1.f;
-			}
-		}
+		LaunchNoWeightRayProcess();
 		// do Li for hit
-		for (int i = 0;i < taskNum;i++) {
-			if (rayWeights[i] > 0.f) {
-				if (hits[i]) {
-					Spectrum& Li = Lis[i];
-					Li = renderer->surfaceIntegrator->Li(render_task->scene, renderer, rays[i], isects[i], &samples[i],
-						rng, arenas[i]);
-				}
-			}
-		}
+		LaunchSurfaceIntegration();
 		// do Li for NotHit
-		for (int i = 0;i < taskNum;i++) {
-			if (rayWeights[i] > 0.f) {
-				if (!hits[i]) {
-					Spectrum& Li = Lis[i];
-					Li = 0;
-					for (uint32_t j = 0; j < render_task->scene->lights.size(); ++j) {
-						Li += render_task->scene->lights[j]->Le(rays[i]);
-					}
-				}
-			}
-		}
+		LaunchMissedRayProcess();
 		// volume integration for weighted rays
-		for (int i = 0;i < taskNum;i++) {
-			if (rayWeights[i] > 0.f) { 
-				Lvis[i] = renderer->volumeIntegrator->Li(render_task->scene, renderer, rays[i], &samples[i], rng,
-					&Ts[i], arenas[i]);
-			}
-		}
+		LaunchVolumeIntegration();
 		// combine
-		for (int i = 0;i < taskNum;i++) {
-			if (rayWeights[i] > 0.f) {
-				Ls[i] = Ts[i] * Lis[i] + Lvis[i];
-				// Issue warning if unexpected radiance value returned
-				if (Ls[i].HasNaNs()) {
-					Error("Not-a-number radiance value returned "
-						"for image sample.  Setting to black.");
-					Ls[i] = Spectrum(0.f);
-				}
-				else if (Ls[i].y() < -1e-5) {
-					Error("Negative luminance value, %f, returned "
-						"for image sample.  Setting to black.", Ls[i].y());
-					Ls[i] = Spectrum(0.f);
-				}
-				else if (isinf(Ls[i].y())) {
-					Error("Infinite luminance value returned "
-						"for image sample.  Setting to black.");
-					Ls[i] = Spectrum(0.f);
-				}
-			}
-		}
-		//auto start = std::chrono::high_resolution_clock::now();
-
-		//auto delta = std::chrono::high_resolution_clock::now() - start;
-		//time += std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
+		LaunchCombineProcess();
 		// add sample and clean up
 		for (int i = 0;i < taskNum;i++) {
 			render_task->camera->film->AddSample(samples[i], Ls[i]);
@@ -335,13 +281,88 @@ void BatchSamplerRendererQueue::LaunchLiProcess() {
 	}
 }
 
-void BatchSamplerRendererQueue::LaunchIntersection() {
-	printf("\nPrimary intersection started\n");
-	auto start = std::chrono::high_resolution_clock::now();
+
+
+void BatchSamplerRendererQueue::LaunchPrimaryRayIntersection() {
+	BEGIN_TIMING(LaunchPrimaryRayIntersection);
 	for (int i = 0;i < taskNum;i++) {
 		hits[i] = render_task->scene->Intersect(rays[i], &isects[i]);
 	}
-	auto delta = std::chrono::high_resolution_clock::now() - start;
-	auto time = std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
-	printf("\nPrimary intersection used: %lld ms\n", time);
+	END_TIMING(LaunchPrimaryRayIntersection);
+}
+
+void BatchSamplerRendererQueue::LaunchSurfaceIntegration() {
+	BEGIN_TIMING(LaunchSurfaceIntegration);
+	for (int i = 0;i < taskNum;i++) {
+		if (rayWeights[i] > 0.f) {
+			if (hits[i]) {
+				Spectrum& Li = Lis[i];
+				Li = renderer->surfaceIntegrator->Li(render_task->scene, renderer, rays[i], isects[i], &samples[i],
+					rng, arenas[i]);
+			}
+		}
+	}
+	END_TIMING(LaunchSurfaceIntegration);
+}
+
+void BatchSamplerRendererQueue::LaunchNoWeightRayProcess() {
+	BEGIN_TIMING(LaunchNoWeightRayProcess);
+	for (int i = 0;i < taskNum;i++) {
+		if (rayWeights[i] <= 0.f) {
+			Ls[i] = 0.f;
+			Ts[i] = 1.f;
+		}
+	}
+	END_TIMING(LaunchNoWeightRayProcess);
+}
+void BatchSamplerRendererQueue::LaunchMissedRayProcess() {
+	BEGIN_TIMING(LaunchMissedRayProcess);
+	for (int i = 0;i < taskNum;i++) {
+		if (rayWeights[i] > 0.f) {
+			if (!hits[i]) {
+				Spectrum& Li = Lis[i];
+				Li = 0;
+				for (uint32_t j = 0; j < render_task->scene->lights.size(); ++j) {
+					Li += render_task->scene->lights[j]->Le(rays[i]);
+				}
+			}
+		}
+	}
+	END_TIMING(LaunchMissedRayProcess);
+}
+void BatchSamplerRendererQueue::LaunchVolumeIntegration() {
+	BEGIN_TIMING(LaunchVolumeIntegration);
+	for (int i = 0;i < taskNum;i++) {
+		if (rayWeights[i] > 0.f) {
+			Lvis[i] = renderer->volumeIntegrator->Li(render_task->scene, renderer, rays[i], &samples[i], rng,
+				&Ts[i], arenas[i]);
+		}
+	}
+	END_TIMING(LaunchVolumeIntegration);
+}
+
+void BatchSamplerRendererQueue::LaunchCombineProcess() {
+	BEGIN_TIMING(LaunchCombineProcess);
+	for (int i = 0;i < taskNum;i++) {
+		if (rayWeights[i] > 0.f) {
+			Ls[i] = Ts[i] * Lis[i] + Lvis[i];
+			// Issue warning if unexpected radiance value returned
+			if (Ls[i].HasNaNs()) {
+				Error("Not-a-number radiance value returned "
+					"for image sample.  Setting to black.");
+				Ls[i] = Spectrum(0.f);
+			}
+			else if (Ls[i].y() < -1e-5) {
+				Error("Negative luminance value, %f, returned "
+					"for image sample.  Setting to black.", Ls[i].y());
+				Ls[i] = Spectrum(0.f);
+			}
+			else if (isinf(Ls[i].y())) {
+				Error("Infinite luminance value returned "
+					"for image sample.  Setting to black.");
+				Ls[i] = Spectrum(0.f);
+			}
+		}
+	}
+	END_TIMING(LaunchCombineProcess);
 }

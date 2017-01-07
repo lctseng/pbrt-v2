@@ -40,6 +40,8 @@
 #include "pbrt.h"
 #include "integrator.h"
 
+
+#include "ntu.h"
 // BatchPathIntegrator Declarations
 class BatchPathIntegrator : public SurfaceIntegrator {
 public:

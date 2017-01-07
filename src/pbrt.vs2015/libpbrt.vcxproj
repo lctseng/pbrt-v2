@@ -177,6 +177,7 @@
     <ClInclude Include="..\core\floatfile.h" />
     <ClInclude Include="..\core\geometry.h" />
     <ClInclude Include="..\core\imageio.h" />
+    <ClInclude Include="..\core\ntu.h" />
     <ClInclude Include="..\core\targa.h" />
     <ClInclude Include="..\core\integrator.h" />
     <ClInclude Include="..\core\intersection.h" />

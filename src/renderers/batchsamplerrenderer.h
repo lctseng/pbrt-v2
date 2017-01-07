@@ -40,8 +40,8 @@
 #include "pbrt.h"
 #include "renderer.h"
 #include "parallel.h"
+#include "ntu.h"
 
-#include <chrono>
 
 // BatchSamplerRenderer Declarations
 class BatchSamplerRenderer : public Renderer {
@@ -109,7 +109,13 @@ public:
 
 	void LaunchLiProcess();
 
-	void LaunchIntersection();
+	void LaunchPrimaryRayIntersection();
+	void LaunchSurfaceIntegration();
+	void LaunchNoWeightRayProcess();
+	void LaunchMissedRayProcess();
+	void LaunchVolumeIntegration();
+	void LaunchCombineProcess();
+
 
 	RayDifferential* RequireRaySpace();
 	Intersection* RequireIntersectionSpace();
