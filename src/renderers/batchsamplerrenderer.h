@@ -123,10 +123,20 @@ public:
 	BatchSamplerRendererTask* render_task;
 
 	RayDifferential* rays;
-	Intersection* isects;
 	Sample* samples;
 	float* rayWeights;
+	
+
+	// internals
 	bool* hits;
+	MemoryArena* arenas;
+	Intersection* isects;
+	Spectrum* Lis;
+	Spectrum* Lvis;
+	Spectrum* Ls;
+	Spectrum* Ts;
+	
+	
 
 	const BatchSamplerRenderer* renderer;
 

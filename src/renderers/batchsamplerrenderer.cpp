@@ -198,12 +198,21 @@ BatchSamplerRendererQueue::BatchSamplerRendererQueue(BatchSamplerRendererTask* r
 render_task(render_task),maxSample(maxSample),rng(rng)
 {
 	int minSpace = max(maxSample, BATCH_RENDER_SIZE);
+
+	renderer = nullptr;
+	renderer = dynamic_cast<const BatchSamplerRenderer*>(render_task->renderer);
+	assert(renderer != nullptr);
+
 	samples = render_task->origSample->Duplicate(minSpace);
 	rays = new RayDifferential[minSpace];
 	isects = new Intersection[minSpace];
 	rayWeights = new float[minSpace];
 	hits = new bool[minSpace];
-	renderer = dynamic_cast<const BatchSamplerRenderer*>(render_task->renderer);
+	arenas = new MemoryArena[minSpace];
+	Lis = new Spectrum[minSpace];
+	Lvis = new Spectrum[minSpace];
+	Ls = new Spectrum[minSpace];
+	Ts = new Spectrum[minSpace];
 	taskNum = 0;
 }
 
@@ -213,6 +222,11 @@ BatchSamplerRendererQueue::~BatchSamplerRendererQueue() {
 	delete[] isects;
 	delete[] rayWeights;
 	delete[] hits;
+	delete[] arenas;
+	delete[] Lis;
+	delete[] Lvis;
+	delete[] Ls;
+	delete[] Ts;
 }
 
 RayDifferential* BatchSamplerRendererQueue::RequireRaySpace() {
@@ -250,52 +264,72 @@ void BatchSamplerRendererQueue::LaunchLiProcess() {
 		//printf("Launch: %d tasks\n", taskNum);
 		LaunchIntersection();
 		// do Li
-		MemoryArena arena;
+		// do no-weight ray
 		for (int i = 0;i < taskNum;i++) {
-			Spectrum T;
-			Spectrum L;
+			if (rayWeights[i] <= 0.f) {
+				Ls[i] = 0.f;
+				Ts[i] = 1.f;
+			}
+		}
+		// do Li for hit
+		for (int i = 0;i < taskNum;i++) {
 			if (rayWeights[i] > 0.f) {
-				//auto start = std::chrono::high_resolution_clock::now();
-				Spectrum Li = 0.f;
 				if (hits[i]) {
-					
+					Spectrum& Li = Lis[i];
 					Li = renderer->surfaceIntegrator->Li(render_task->scene, renderer, rays[i], isects[i], &samples[i],
-						rng, arena);
+						rng, arenas[i]);
 				}
-				else {
-					for (uint32_t j = 0; j < render_task->scene->lights.size(); ++j)
+			}
+		}
+		// do Li for NotHit
+		for (int i = 0;i < taskNum;i++) {
+			if (rayWeights[i] > 0.f) {
+				if (!hits[i]) {
+					Spectrum& Li = Lis[i];
+					Li = 0;
+					for (uint32_t j = 0; j < render_task->scene->lights.size(); ++j) {
 						Li += render_task->scene->lights[j]->Le(rays[i]);
+					}
 				}
-				
-				Spectrum Lvi = renderer->volumeIntegrator->Li(render_task->scene, renderer, rays[i], &samples[i], rng,
-					&T, arena);
-				L = T * Li + Lvi;
+			}
+		}
+		// volume integration for weighted rays
+		for (int i = 0;i < taskNum;i++) {
+			if (rayWeights[i] > 0.f) { 
+				Lvis[i] = renderer->volumeIntegrator->Li(render_task->scene, renderer, rays[i], &samples[i], rng,
+					&Ts[i], arenas[i]);
+			}
+		}
+		// combine
+		for (int i = 0;i < taskNum;i++) {
+			if (rayWeights[i] > 0.f) {
+				Ls[i] = Ts[i] * Lis[i] + Lvis[i];
 				// Issue warning if unexpected radiance value returned
-				if (L.HasNaNs()) {
+				if (Ls[i].HasNaNs()) {
 					Error("Not-a-number radiance value returned "
 						"for image sample.  Setting to black.");
-					L = Spectrum(0.f);
+					Ls[i] = Spectrum(0.f);
 				}
-				else if (L.y() < -1e-5) {
+				else if (Ls[i].y() < -1e-5) {
 					Error("Negative luminance value, %f, returned "
-						"for image sample.  Setting to black.", L.y());
-					L = Spectrum(0.f);
+						"for image sample.  Setting to black.", Ls[i].y());
+					Ls[i] = Spectrum(0.f);
 				}
-				else if (isinf(L.y())) {
+				else if (isinf(Ls[i].y())) {
 					Error("Infinite luminance value returned "
 						"for image sample.  Setting to black.");
-					L = Spectrum(0.f);
+					Ls[i] = Spectrum(0.f);
 				}
-				//auto delta = std::chrono::high_resolution_clock::now() - start;
-				//time += std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
 			}
-			else {
-				L = 0.f;
-				T = 1.f;
-			}
+		}
+		//auto start = std::chrono::high_resolution_clock::now();
 
-			render_task->camera->film->AddSample(samples[i], L);
-			arena.FreeAll();
+		//auto delta = std::chrono::high_resolution_clock::now() - start;
+		//time += std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
+		// add sample and clean up
+		for (int i = 0;i < taskNum;i++) {
+			render_task->camera->film->AddSample(samples[i], Ls[i]);
+			arenas[i].FreeAll();
 		}
 		taskNum = 0;
 	}
