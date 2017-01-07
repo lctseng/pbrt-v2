@@ -42,6 +42,11 @@ Integrator::~Integrator() {
 }
 
 
+Spectrum SurfaceIntegrator::BatchLi(const Scene *scene, const Renderer *renderer,
+	const RayDifferential &ray, const Sample *sample, RNG &rng, MemoryArena &arena, bool* pHit) const {
+	throw("Not implemented");
+}
+
 
 // Integrator Utility Functions
 Spectrum UniformSampleAllLights(const Scene *scene,

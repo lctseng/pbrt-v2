@@ -49,6 +49,9 @@ public:
     Spectrum Li(const Scene *scene, const Renderer *renderer,
         const RayDifferential &ray, const Intersection &isect,
         const Sample *sample, RNG &rng, MemoryArena &arena) const;
+	Spectrum BatchLi(const Scene *scene, const Renderer *renderer,
+		const RayDifferential &ray,
+		const Sample *sample, RNG &rng, MemoryArena &arena, bool* pHit) const;
     void RequestSamples(Sampler *sampler, Sample *sample, const Scene *scene);
     BatchPathIntegrator(int md) { maxDepth = md; }
 private:

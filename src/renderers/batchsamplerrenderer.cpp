@@ -261,7 +261,7 @@ void BatchSamplerRendererQueue::Flush() {
 }
 void BatchSamplerRendererQueue::LaunchLiProcess() {
 	if (taskNum > 0) {
-		LaunchPrimaryRayIntersection();
+		//LaunchPrimaryRayIntersection();
 		// do no-weight ray
 		LaunchNoWeightRayProcess();
 		// do Li for hit
@@ -295,11 +295,8 @@ void BatchSamplerRendererQueue::LaunchSurfaceIntegration() {
 	BEGIN_TIMING(LaunchSurfaceIntegration);
 	for (int i = 0;i < taskNum;i++) {
 		if (rayWeights[i] > 0.f) {
-			if (hits[i]) {
-				Spectrum& Li = Lis[i];
-				Li = renderer->surfaceIntegrator->Li(render_task->scene, renderer, rays[i], isects[i], &samples[i],
-					rng, arenas[i]);
-			}
+			Spectrum& Li = Lis[i];
+			Li = renderer->surfaceIntegrator->BatchLi(render_task->scene, renderer, rays[i], &samples[i],rng, arenas[i], &hits[i]);
 		}
 	}
 	END_TIMING(LaunchSurfaceIntegration);
