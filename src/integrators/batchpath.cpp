@@ -50,7 +50,7 @@ void BatchPathIntegrator::RequestSamples(Sampler *sampler, Sample *sample,
 
 void BatchPathIntegrator::BatchIntersecrion(const Scene *scene, int batchSize, bool* hits, const RayDifferential* rays, Intersection* isects, float* rayWeights) const {
 	for (int i = 0;i < batchSize;i++) {
-		if(rayWeights[i] > 0.f){
+		if (rayWeights[i] > 0.f) {
 			hits[i] = scene->Intersect(rays[i], &isects[i]);
 		}
 	}
@@ -67,7 +67,7 @@ void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, 
 
 	// batch primary intersection
 	BatchIntersecrion(scene, batchSize, hits, original_rays, isects, rayWeights);
-	
+
 	// init
 	for (int i = 0;i < batchSize;i++) {
 		if (rayWeights[i] > 0.f) {
@@ -75,84 +75,108 @@ void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, 
 			Ls[i] = 0.;
 			localRays[i] = std::move(RayDifferential(original_rays[i]));
 			specularBounces[i] = false;
+			localHits[i] = hits[i];
 		}
 	}
+	/*
+	for (int bounces = 0; ; ++bounces) {
+		// before intersection
+		for (int i = 0;i < batchSize;i++) {
+			if (rayWeights[i] > 0.0f && localHits[i]) {
 
-	for (int i = 0;i < batchSize;i++) {
-		if (rayWeights[i] > 0.0f) {
-			
-			auto& pathThroughput = pathThroughputs[i];
-			auto& specularBounce = specularBounces[i];
-			auto& ray = localRays[i];
-			auto& L = Ls[i];
-			auto& arena = arenas[i];
-
-			Intersection *isectp = &isects[i];
-			auto sample = samples + i;
-
-			if (hits[i]) {
-				for (int bounces = 0; ; ++bounces) {
-					// Possibly add emitted light at path vertex
-					if (bounces == 0 || specularBounce)
-						L += pathThroughput * isectp->Le(-ray.d);
-
-					// Sample illumination from lights to find path contribution
-					BSDF *bsdf = isectp->GetBSDF(ray, arena);
-					const Point &p = bsdf->dgShading.p;
-					const Normal &n = bsdf->dgShading.nn;
-					Vector wo = -ray.d;
-					if (bounces < SAMPLE_DEPTH)
-						L += pathThroughput *
-						UniformSampleOneLight(scene, renderer, arena, p, n, wo,
-							isectp->rayEpsilon, ray.time, bsdf, sample, rng,
-							lightNumOffset[bounces], &lightSampleOffsets[bounces],
-							&bsdfSampleOffsets[bounces]);
-					else
-						L += pathThroughput *
-						UniformSampleOneLight(scene, renderer, arena, p, n, wo,
-							isectp->rayEpsilon, ray.time, bsdf, sample, rng);
-
-					// Sample BSDF to get new path direction
-
-					// Get _outgoingBSDFSample_ for sampling new path direction
-					BSDFSample outgoingBSDFSample;
-					if (bounces < SAMPLE_DEPTH)
-						outgoingBSDFSample = BSDFSample(sample, pathSampleOffsets[bounces],
-							0);
-					else
-						outgoingBSDFSample = BSDFSample(rng);
-					Vector wi;
-					float pdf;
-					BxDFType flags;
-					Spectrum f = bsdf->Sample_f(wo, &wi, outgoingBSDFSample, &pdf,
-						BSDF_ALL, &flags);
-					if (f.IsBlack() || pdf == 0.)
-						break;
-					specularBounce = (flags & BSDF_SPECULAR) != 0;
-					pathThroughput *= f * AbsDot(wi, n) / pdf;
-					ray = RayDifferential(p, wi, ray, isectp->rayEpsilon);
-
-					// Possibly terminate the path
-					if (bounces > 3) {
-						float continueProbability = min(.5f, pathThroughput.y());
-						if (rng.RandomFloat() > continueProbability)
-							break;
-						pathThroughput /= continueProbability;
-					}
-					if (bounces == maxDepth)
-						break;
-
-					// Find next vertex of path
-					if (!scene->Intersect(ray, &isects[i])) {
-						if (specularBounce)
-							for (uint32_t i = 0; i < scene->lights.size(); ++i)
-								L += pathThroughput * scene->lights[i]->Le(ray);
-						break;
-					}
-					pathThroughput *= renderer->Transmittance(scene, ray, NULL, rng, arena);
-				}
 			}
 		}
+		// intersection
+		for (int i = 0;i < batchSize;i++) {
+			if (rayWeights[i] > 0.0f && localHits[i]) {
+
+			}
+		}
+		// after intersection	
+		for (int i = 0;i < batchSize;i++) {
+			if (rayWeights[i] > 0.0f && localHits[i]) {
+
+			}
+		}
+	}
+	*/
+
+
+	for (int i = 0;i < batchSize;i++) {
+
+
+		auto& pathThroughput = pathThroughputs[i];
+		auto& specularBounce = specularBounces[i];
+		auto& ray = localRays[i];
+		auto& L = Ls[i];
+		auto& arena = arenas[i];
+
+		Intersection *isectp = &isects[i];
+		auto sample = samples + i;
+		if (rayWeights[i] > 0.0f && localHits[i]) {
+			for (int bounces = 0; ; ++bounces) {
+				// Possibly add emitted light at path vertex
+				if (bounces == 0 || specularBounce)
+					L += pathThroughput * isectp->Le(-ray.d);
+
+				// Sample illumination from lights to find path contribution
+				BSDF *bsdf = isectp->GetBSDF(ray, arena);
+				const Point &p = bsdf->dgShading.p;
+				const Normal &n = bsdf->dgShading.nn;
+				Vector wo = -ray.d;
+				if (bounces < SAMPLE_DEPTH)
+					L += pathThroughput *
+					UniformSampleOneLight(scene, renderer, arena, p, n, wo,
+						isectp->rayEpsilon, ray.time, bsdf, sample, rng,
+						lightNumOffset[bounces], &lightSampleOffsets[bounces],
+						&bsdfSampleOffsets[bounces]);
+				else
+					L += pathThroughput *
+					UniformSampleOneLight(scene, renderer, arena, p, n, wo,
+						isectp->rayEpsilon, ray.time, bsdf, sample, rng);
+
+				// Sample BSDF to get new path direction
+
+				// Get _outgoingBSDFSample_ for sampling new path direction
+				BSDFSample outgoingBSDFSample;
+				if (bounces < SAMPLE_DEPTH)
+					outgoingBSDFSample = BSDFSample(sample, pathSampleOffsets[bounces],
+						0);
+				else
+					outgoingBSDFSample = BSDFSample(rng);
+				Vector wi;
+				float pdf;
+				BxDFType flags;
+				Spectrum f = bsdf->Sample_f(wo, &wi, outgoingBSDFSample, &pdf,
+					BSDF_ALL, &flags);
+				if (f.IsBlack() || pdf == 0.)
+					break;
+				specularBounce = (flags & BSDF_SPECULAR) != 0;
+				pathThroughput *= f * AbsDot(wi, n) / pdf;
+				ray = RayDifferential(p, wi, ray, isectp->rayEpsilon);
+
+				// Possibly terminate the path
+				if (bounces > 3) {
+					float continueProbability = min(.5f, pathThroughput.y());
+					if (rng.RandomFloat() > continueProbability)
+						break;
+					pathThroughput /= continueProbability;
+				}
+				if (bounces == maxDepth)
+					break;
+
+				// Find next vertex of path
+				localHits[i] = scene->Intersect(ray, &isects[i]);
+				if (!localHits[i]) {
+					if (specularBounce)
+						for (uint32_t i = 0; i < scene->lights.size(); ++i)
+							L += pathThroughput * scene->lights[i]->Le(ray);
+					break;
+				}
+				pathThroughput *= renderer->Transmittance(scene, ray, NULL, rng, arena);
+			}
+		}
+
 	}
 	delete[] localHits;
 	delete[] isects;
