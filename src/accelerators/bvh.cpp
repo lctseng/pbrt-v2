@@ -403,11 +403,8 @@ BVHAccel::~BVHAccel() {
 bool BVHAccel::Intersect(const Ray &ray, Intersection *isect) const {
     if (!nodes) return false;
     PBRT_BVH_INTERSECTION_STARTED(const_cast<BVHAccel *>(this), const_cast<Ray *>(&ray));
-	static int count;
-	count += 1;
-	if (count % 100000 == 0) {
-		printf("BVH: %d\n", count);
-	}
+	static long long call_count = 0, loop_count = 0, inter_count = 0;
+	call_count += 1;
     bool hit = false;
     Vector invDir(1.f / ray.d.x, 1.f / ray.d.y, 1.f / ray.d.z);
     uint32_t dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
@@ -415,6 +412,7 @@ bool BVHAccel::Intersect(const Ray &ray, Intersection *isect) const {
     uint32_t todoOffset = 0, nodeNum = 0;
     uint32_t todo[64];
     while (true) {
+		loop_count += 1;
         const LinearBVHNode *node = &nodes[nodeNum];
         // Check ray against BVH node
         if (::IntersectP(node->bounds, ray, invDir, dirIsNeg)) {
@@ -423,6 +421,7 @@ bool BVHAccel::Intersect(const Ray &ray, Intersection *isect) const {
                 PBRT_BVH_INTERSECTION_TRAVERSED_LEAF_NODE(const_cast<LinearBVHNode *>(node));
                 for (uint32_t i = 0; i < node->nPrimitives; ++i)
                 {
+					inter_count += 1;
                     PBRT_BVH_INTERSECTION_PRIMITIVE_TEST(const_cast<Primitive *>(primitives[node->primitivesOffset+i].GetPtr()));
                     if (primitives[node->primitivesOffset+i]->Intersect(ray, isect))
                     {
@@ -455,6 +454,9 @@ bool BVHAccel::Intersect(const Ray &ray, Intersection *isect) const {
         }
     }
     PBRT_BVH_INTERSECTION_FINISHED();
+	if (call_count % 100000 == 0) {
+		printf("BVH Call: %lld, Loop : %lld, Intersection: %lld\n", call_count, loop_count, inter_count);
+	}
     return hit;
 }
 
