@@ -50,11 +50,7 @@ void BatchPathIntegrator::RequestSamples(Sampler *sampler, Sample *sample,
 
 void BatchPathIntegrator::BatchIntersecrion(const Scene *scene, int batchSize, bool* hits, const RayDifferential* rays, Intersection* isects, bool* validRayFlags) const {
 	BEGIN_TIMING(Intergrator_BatchIntersecrion);
-	for (int i = 0;i < batchSize;i++) {
-		if (validRayFlags[i]) {
-			scene->BatchIntersect(&rays[i], &isects[i], &hits[i], validRayFlags, batchSize);
-		}
-	}
+	scene->BatchIntersect(rays, isects, hits, validRayFlags, batchSize);
 	END_TIMING(Intergrator_BatchIntersecrion);
 }
 

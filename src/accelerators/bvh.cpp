@@ -459,15 +459,12 @@ bool BVHAccel::Intersect(const Ray &ray, Intersection *isect) const {
 }
 
 
-void BVHAccel::BatchIntersect(const Ray *rays, Intersection *isects, bool* hits, bool* validRayFlags, int batchSize) const {
-	hits[0] = Intersect(rays[0], &isects[0]);
-	/*
+void BVHAccel::BatchIntersect(const RayDifferential *rays, Intersection *isects, bool* hits, bool* validRayFlags, int batchSize) const {
 	for (int i = 0;i < batchSize;i++) {
-		if(validRayFlags[i]){
+		if (validRayFlags[i]) {
 			hits[i] = Intersect(rays[i], &isects[i]);
 		}
 	}
-	*/
 }
 
 bool BVHAccel::IntersectP(const Ray &ray) const {

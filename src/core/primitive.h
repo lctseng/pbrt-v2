@@ -60,7 +60,7 @@ public:
         const Transform &ObjectToWorld, MemoryArena &arena) const = 0;
 
 	// NTU
-	virtual void BatchIntersect(const Ray *rays, Intersection *isects, bool* hits, bool* validRayFlags, int batchSize) const;
+	virtual void BatchIntersect(const RayDifferential *rays, Intersection *isects, bool* hits, bool* validRayFlags, int batchSize) const;
 
     // Primitive Public Data
     const uint32_t primitiveId;

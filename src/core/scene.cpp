@@ -59,7 +59,9 @@ Scene::Scene(Primitive *accel, const vector<Light *> &lts,
     bound = aggregate->WorldBound();
     if (volumeRegion) bound = Union(bound, volumeRegion->WorldBound());
 }
-
+void Scene::BatchIntersect(const RayDifferential* rays, Intersection *isects, bool* hits, bool* validRayFlags, int batchSize) const {
+	aggregate->BatchIntersect(rays, isects, hits, validRayFlags, batchSize);
+}
 
 const BBox &Scene::WorldBound() const {
     return bound;
