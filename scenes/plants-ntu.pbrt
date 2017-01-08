@@ -4,10 +4,10 @@ Film "image"
 	"integer xresolution" [800] "integer yresolution" [400]
     "string filename" "plants-ntu.exr"
 
-Sampler "lowdiscrepancy" "integer pixelsamples" [1]
+Sampler "bestcandidate" "integer pixelsamples" [1]
 PixelFilter "box"
 
-SurfaceIntegrator "path"
+SurfaceIntegrator "directlighting"
 
 VolumeIntegrator "emission" "float stepsize" [16]
 
