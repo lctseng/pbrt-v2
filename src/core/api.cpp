@@ -1131,16 +1131,35 @@ void pbrtObjectInstance(const string &name) {
     }
     vector<Reference<Primitive> > &in = renderOptions->instances[name];
     if (in.size() == 0) return;
-    if (in.size() > 1 || !in[0]->CanIntersect()) {
-        // Refine instance _Primitive_s and create aggregate
-        Reference<Primitive> accel =
-             MakeAccelerator(renderOptions->AcceleratorName,
-                             in, renderOptions->AcceleratorParams);
-        if (!accel) accel = MakeAccelerator("bvh", in, ParamSet());
-        if (!accel) Severe("Unable to create \"bvh\" accelerator");
-        in.erase(in.begin(), in.end());
-        in.push_back(accel);
-    }
+	/*
+	if (in.size() > 1 || !in[0]->CanIntersect()) {
+		printf("Create BVH for %s due to cannot intersect\n", name.c_str());
+		// Refine instance _Primitive_s and create aggregate
+		Reference<Primitive> accel =
+			MakeAccelerator(renderOptions->AcceleratorName,
+				in, renderOptions->AcceleratorParams);
+		if (!accel) accel = MakeAccelerator("bvh", in, ParamSet());
+		if (!accel) Severe("Unable to create \"bvh\" accelerator");
+		in.erase(in.begin(), in.end());
+		in.push_back(accel);
+	}
+	*/
+
+	if (in.size() > 1 || !in[0]->CanIntersect()) {
+
+
+		vector<Reference<Primitive> > refined;
+		for (auto& p : in) {
+			p->FullyRefine(refined);
+		}
+
+		in.erase(in.begin(), in.end());
+		for (auto& p : refined) {
+			in.push_back(p);
+		}
+	}
+	
+	
     Assert(MAX_TRANSFORMS == 2);
     Transform *world2instance[2];
     transformCache.Lookup(curTransform[0], NULL, &world2instance[0]);
@@ -1148,9 +1167,11 @@ void pbrtObjectInstance(const string &name) {
     AnimatedTransform animatedWorldToInstance(world2instance[0],
         renderOptions->transformStartTime,
         world2instance[1], renderOptions->transformEndTime);
-    Reference<Primitive> prim =
-        new TransformedPrimitive(in[0], animatedWorldToInstance);
-    renderOptions->primitives.push_back(prim);
+	for (auto& p : in) {
+		Reference<Primitive> prim =
+			new TransformedPrimitive(p, animatedWorldToInstance);
+		renderOptions->primitives.push_back(prim);
+	}   
 }
 
 
