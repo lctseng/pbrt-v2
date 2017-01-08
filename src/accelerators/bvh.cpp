@@ -403,6 +403,11 @@ BVHAccel::~BVHAccel() {
 bool BVHAccel::Intersect(const Ray &ray, Intersection *isect) const {
     if (!nodes) return false;
     PBRT_BVH_INTERSECTION_STARTED(const_cast<BVHAccel *>(this), const_cast<Ray *>(&ray));
+	static int count;
+	count += 1;
+	if (count % 100000 == 0) {
+		printf("BVH: %d\n", count);
+	}
     bool hit = false;
     Vector invDir(1.f / ray.d.x, 1.f / ray.d.y, 1.f / ray.d.z);
     uint32_t dirIsNeg[3] = { invDir.x < 0, invDir.y < 0, invDir.z < 0 };
@@ -453,6 +458,17 @@ bool BVHAccel::Intersect(const Ray &ray, Intersection *isect) const {
     return hit;
 }
 
+
+void BVHAccel::BatchIntersect(const Ray *rays, Intersection *isects, bool* hits, bool* validRayFlags, int batchSize) const {
+	hits[0] = Intersect(rays[0], &isects[0]);
+	/*
+	for (int i = 0;i < batchSize;i++) {
+		if(validRayFlags[i]){
+			hits[i] = Intersect(rays[i], &isects[i]);
+		}
+	}
+	*/
+}
 
 bool BVHAccel::IntersectP(const Ray &ray) const {
     if (!nodes) return false;

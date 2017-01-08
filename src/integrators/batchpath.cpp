@@ -52,7 +52,7 @@ void BatchPathIntegrator::BatchIntersecrion(const Scene *scene, int batchSize, b
 	BEGIN_TIMING(Intergrator_BatchIntersecrion);
 	for (int i = 0;i < batchSize;i++) {
 		if (validRayFlags[i]) {
-			hits[i] = scene->Intersect(rays[i], &isects[i]);
+			scene->BatchIntersect(&rays[i], &isects[i], &hits[i], validRayFlags, batchSize);
 		}
 	}
 	END_TIMING(Intergrator_BatchIntersecrion);

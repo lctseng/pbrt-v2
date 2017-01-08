@@ -53,6 +53,9 @@ public:
         PBRT_FINISHED_RAY_INTERSECTION(const_cast<Ray *>(&ray), isect, int(hit));
         return hit;
     }
+	void BatchIntersect(const Ray* rays, Intersection *isects,bool* hits, bool* validRayFlags, int batchSize) const {
+		aggregate->BatchIntersect(rays, isects, hits, validRayFlags, batchSize);
+	}
     bool IntersectP(const Ray &ray) const {
         PBRT_STARTED_RAY_INTERSECTIONP(const_cast<Ray *>(&ray));
         bool hit = aggregate->IntersectP(ray);
