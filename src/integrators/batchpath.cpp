@@ -89,7 +89,7 @@ void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, 
 		if (bounces > 0) {
 			BatchIntersecrion(scene, batchSize, localHits, localRays, isects, validRayFlags);
 		}
-		BEGIN_TIMING(Intergrator_BatchBSDF);
+		//BEGIN_TIMING(Intergrator_BatchBSDF);
 		for (int i = 0;i < batchSize;i++) {
 			auto& pathThroughput = pathThroughputs[i];
 			auto& specularBounce = specularBounces[i];
@@ -169,7 +169,7 @@ void BatchPathIntegrator::BatchLi(const Scene *scene, const Renderer *renderer, 
 				validRayFlags[i] = validRayFlags[i] && localHits[i];
 			}
 		}
-		END_TIMING(Intergrator_BatchBSDF);
+		//END_TIMING(Intergrator_BatchBSDF);
 
 	}
 	delete[] localHits;

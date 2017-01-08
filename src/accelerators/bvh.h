@@ -57,6 +57,7 @@ public:
     bool Intersect(const Ray &ray, Intersection *isect) const;
     bool IntersectP(const Ray &ray) const;
 
+	bool BatchIntersect(const Ray &ray, Intersection *isect) const;
 
 	void BatchIntersect(const RayDifferential *rays, Intersection *isects, bool* hits, bool* validRayFlags, int batchSize) const;
 private:
@@ -72,6 +73,10 @@ private:
     SplitMethod splitMethod;
     vector<Reference<Primitive> > primitives;
     LinearBVHNode *nodes;
+
+	mutable vector<Reference<Primitive> > to_be_intersects;
+
+
 };
 
 

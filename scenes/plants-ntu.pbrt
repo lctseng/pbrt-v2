@@ -75,10 +75,10 @@ Include "geometry/ecosys/ecosys-texture.pbrt"
 
 #Include "geometry/ecosys/ecosys-apple.pbrt"
 Include "geometry/ecosys/ecosys-bush.pbrt"
-Include "geometry/ecosys/ecosys-dandelion.pbrt"
-Include "geometry/ecosys/ecosys-grass.pbrt"
-Include "geometry/ecosys/ecosys-urtica.pbrt"
-Include "geometry/ecosys/ecosys-yellowflower.pbrt"
+#Include "geometry/ecosys/ecosys-dandelion.pbrt"
+#Include "geometry/ecosys/ecosys-grass.pbrt"
+#Include "geometry/ecosys/ecosys-urtica.pbrt"
+#Include "geometry/ecosys/ecosys-yellowflower.pbrt"
 
 Include "geometry/ecosys/ecosys-terrain.pbrt"
 

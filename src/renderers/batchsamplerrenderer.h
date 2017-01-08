@@ -95,7 +95,7 @@ private:
 };
 
 
-#define BATCH_RENDER_SIZE 50000
+#define BATCH_RENDER_SIZE 10000
 
 class BatchSamplerRendererQueue {
 public:

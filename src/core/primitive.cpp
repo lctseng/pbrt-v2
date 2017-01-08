@@ -67,7 +67,11 @@ Primitive::FullyRefine(vector<Reference<Primitive> > &refined) const {
 }
 
 void Primitive::BatchIntersect(const RayDifferential *rays, Intersection *isects, bool* hits, bool* validRayFlags, int batchSize) const {
-	throw("Not implemented");
+	for (int i = 0;i < batchSize;i++) {
+		if (validRayFlags[i]) {
+			hits[i] = Intersect(rays[i], &isects[i]);
+		}
+	}
 }
 
 
