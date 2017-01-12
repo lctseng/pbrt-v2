@@ -41,11 +41,12 @@ public:
 template<int DIM>
 class PoissonGenerator{
 public:
-  PoissonGenerator(int nSamples, RNG* pRng , float minDistance = -1 ,int k = 30);
+  PoissonGenerator(int nSamples, float minDistance = -1 ,int k = 30);
   ~PoissonGenerator();
   int PlaceSamples(float* samples, int offset = 0, int step = DIM);
   
   static const int GRID_CHECK_SIZE = 3;
+  RNG* pRng;
 
 
 private:
@@ -72,7 +73,7 @@ private:
   float m_numberBuffer[DIM];
   std::vector<PoissonGridPoint<DIM> > m_activeList;
 
-  RNG* pRng;
+  
 
   PoissonGridPoint<DIM>* m_grid;
 };
@@ -82,11 +83,12 @@ private:
 // BestCandidateSampler Declarations
 class PoissonDiskSampler : public Sampler {
 public:
+
+	enum SampleMode { mode_repeat, mode_single };
+
 	// PoissonDiskSampler Public Methods
 	PoissonDiskSampler(int xstart, int xend, int ystart, int yend,
-		int nPixelSamples, float sopen, float sclose);
-	PoissonDiskSampler(PoissonDiskSampler* master, int xstart, int xend, int ystart, int yend,
-		int nPixelSamples, float sopen, float sclose);
+		int nPixelSamples, float sopen, float sclose, int nMaxSample, SampleMode mode = mode_repeat);
 	~PoissonDiskSampler();
 	Sampler *GetSubSampler(int num, int count);
 	int RoundSize(int size) const {
@@ -97,17 +99,25 @@ public:
 private:
 	// PoissonDiskSampler Private Data
 	
+	void PrepareNewSamples(RNG& rng);
+
+	SampleMode m_SampleMode;
+
+	int nMaxSample;
+
 	RNG rng;
 
 	PoissonGenerator<1>* pGenerator_1D;
 	PoissonGenerator<2>* pGenerator_2D;
 
-	PoissonDiskSampler* pMasterSampler;
+	//int table.
 
-	int nTotalSamples;
-	int dummySampler;
-
+	int nTotalSamplesRequired;
+	int nTotalSamplesPrepared;
+	int nValidSamples;
+	int nCurrentSampleIndex;
 	
+	int nEmittedSamples;
 
 	float* samples;
 

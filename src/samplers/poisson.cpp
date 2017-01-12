@@ -51,8 +51,8 @@ bool PoissonGridPoint<DIM>::CheckCoordinateFit() const {
 }
 
 template<int DIM>
-PoissonGenerator<DIM>::PoissonGenerator(int nSamples, RNG* pRng, float minDistance, int k)
-	:m_nSamples(nSamples), m_k(k), pRng(pRng)
+PoissonGenerator<DIM>::PoissonGenerator(int nSamples, float minDistance, int k)
+	:m_nSamples(nSamples), m_k(k)
 {
 	if (minDistance < 0.f) {
 		m_minDistance = 1.f / powf(nSamples, 1.f / DIM) / 1.25f;
@@ -284,47 +284,78 @@ template class PoissonGenerator<1>;
 
 
 PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yend,
-	int nPixelSamples, float sopen, float sclose)
+	int nPixelSamples, float sopen, float sclose, int nMaxSample, SampleMode mode)
 	: Sampler(xstart, xend, ystart, yend, nPixelSamples, sopen, sclose),
-	nTotalSamples((xend - xstart)*(yend - ystart) * nPixelSamples),
+	nTotalSamplesRequired((xend - xstart)*(yend - ystart) * nPixelSamples),
+	nTotalSamplesPrepared(max(nTotalSamplesRequired, nMaxSample)),
+	nMaxSample(nMaxSample),
 	rng(xstart + ystart * (xend - xstart)),
-	pGenerator_1D(new PoissonGenerator<1>(nTotalSamples, &rng)),
-	pGenerator_2D(new PoissonGenerator<2>(nTotalSamples, &rng)),
-	samples(new float[nTotalSamples * 5]),
-	pMasterSampler(nullptr),
-	dummySampler(false)
+	pGenerator_1D(new PoissonGenerator<1>(nTotalSamplesPrepared)),
+	pGenerator_2D(new PoissonGenerator<2>(nTotalSamplesPrepared)),
+	samples(new float[nTotalSamplesPrepared * 5]),
+	m_SampleMode(mode),
+	nEmittedSamples(0),
+	nValidSamples(0)
 {
+	PrepareNewSamples(rng);
 }
 
-PoissonDiskSampler::PoissonDiskSampler(PoissonDiskSampler* master, int xstart, int xend, int ystart, int yend,
-	int nPixelSamples, float sopen, float sclose)
-	: Sampler(xstart, xend, ystart, yend, nPixelSamples, sopen, sclose),
-	nTotalSamples(0),
-	pGenerator_1D(nullptr), pGenerator_2D(nullptr),
-	samples(nullptr), pMasterSampler(master),
-	dummySampler(true)
-{
-
-}
 
 PoissonDiskSampler::~PoissonDiskSampler() {
-	if (!dummySampler) {
-		delete[] samples;
-		delete[] pGenerator_1D;
-		delete[] pGenerator_2D;
-	}
+	delete[] samples;
+	delete[] pGenerator_1D;
+	delete[] pGenerator_2D;
 }
 
 Sampler *PoissonDiskSampler::GetSubSampler(int num, int count) {
 	int x0, x1, y0, y1;
 	ComputeSubWindow(num, count, &x0, &x1, &y0, &y1);
 	if (x0 == x1 || y0 == y1) return NULL;
-	return new PoissonDiskSampler(this, x0, x1, y0, y1, samplesPerPixel,
-		shutterOpen, shutterClose);
+	return new PoissonDiskSampler(x0, x1, y0, y1, samplesPerPixel,
+		shutterOpen, shutterClose, nMaxSample);
 }
 
 int PoissonDiskSampler::GetMoreSamples(Sample *sample, RNG &rng) {
-	return 0;
+	// check max
+	if (nEmittedSamples >= nTotalSamplesRequired) {
+		return 0;
+	}
+	// check if there is a usable sample
+	if (nCurrentSampleIndex >= nValidSamples) {
+		if (m_SampleMode == mode_repeat) {
+			PrepareNewSamples(rng);
+		}
+		else {
+			// single mode: no more samples!
+			return 0;
+		}
+	}
+	// fill and return a sample
+	int offset = nCurrentSampleIndex++ * 5;
+	sample->imageX = samples[offset];
+	sample->imageY = samples[offset + 1];
+	sample->lensU = samples[offset + 3];
+	sample->lensV = samples[offset + 4];
+	sample->time = Lerp(samples[offset + 2], shutterOpen, shutterClose);
+	// Compute integrator samples 
+	for (uint32_t i = 0; i < sample->n1D.size(); ++i)
+		LDShuffleScrambled1D(sample->n1D[i], 1, sample->oneD[i], rng);
+	for (uint32_t i = 0; i < sample->n2D.size(); ++i)
+		LDShuffleScrambled2D(sample->n2D[i], 1, sample->twoD[i], rng);
+	// return 
+	++nEmittedSamples;
+	return 1;
+}
+
+void PoissonDiskSampler::PrepareNewSamples(RNG& rng) {
+	pGenerator_1D->pRng = &rng;
+	pGenerator_2D->pRng = &rng;
+	nValidSamples = pGenerator_1D->PlaceSamples(samples, 2, 5);
+	nValidSamples = min(nValidSamples, pGenerator_2D->PlaceSamples(samples, 0, 5));
+	nValidSamples = min(nValidSamples, pGenerator_2D->PlaceSamples(samples, 3, 5));
+	nCurrentSampleIndex = 0;
+	pGenerator_1D->pRng = &this->rng;
+	pGenerator_2D->pRng = &this->rng;
 }
 
 PoissonDiskSampler *CreatePoissonDiskSampler(const ParamSet &params, const Film *film,
@@ -333,7 +364,8 @@ PoissonDiskSampler *CreatePoissonDiskSampler(const ParamSet &params, const Film 
 	int xstart, xend, ystart, yend;
 	film->GetSampleExtent(&xstart, &xend, &ystart, &yend);
 	int nsamp = params.FindOneInt("pixelsamples", 4);
+	int nMaxSample = params.FindOneInt("maxConcurrentSamples", 20000);
 	if (PbrtOptions.quickRender) nsamp = 1;
 	return new PoissonDiskSampler(xstart, xend, ystart, yend, nsamp,
-		camera->shutterOpen, camera->shutterClose);
+		camera->shutterOpen, camera->shutterClose, nMaxSample, PoissonDiskSampler::mode_repeat);
 }
