@@ -1,5 +1,15 @@
+#if defined(_MSC_VER)
+#pragma once
+#endif
+
+
 #ifndef _POISSON_H_INCLUDED
 #define _POISSON_H_INCLUDED
+
+
+#include "sampler.h"
+#include "paramset.h"
+#include "film.h"
 
 #include <vector>
 
@@ -31,7 +41,7 @@ public:
 template<int DIM>
 class PoissonGenerator{
 public:
-  PoissonGenerator(int nSamples, float minDistance = -1 ,int k = 30);
+  PoissonGenerator(int nSamples, RNG* pRng , float minDistance = -1 ,int k = 30);
   ~PoissonGenerator();
   int PlaceSamples(float* samples, int offset = 0, int step = DIM);
   
@@ -62,8 +72,51 @@ private:
   float m_numberBuffer[DIM];
   std::vector<PoissonGridPoint<DIM> > m_activeList;
 
+  RNG* pRng;
+
   PoissonGridPoint<DIM>* m_grid;
 };
+
+
+
+// BestCandidateSampler Declarations
+class PoissonDiskSampler : public Sampler {
+public:
+	// PoissonDiskSampler Public Methods
+	PoissonDiskSampler(int xstart, int xend, int ystart, int yend,
+		int nPixelSamples, float sopen, float sclose);
+	PoissonDiskSampler(PoissonDiskSampler* master, int xstart, int xend, int ystart, int yend,
+		int nPixelSamples, float sopen, float sclose);
+	~PoissonDiskSampler();
+	Sampler *GetSubSampler(int num, int count);
+	int RoundSize(int size) const {
+		return RoundUpPow2(size);
+	}
+	int MaximumSampleCount() { return 1; }
+	int GetMoreSamples(Sample *sample, RNG &rng);
+private:
+	// PoissonDiskSampler Private Data
+	
+	RNG rng;
+
+	PoissonGenerator<1>* pGenerator_1D;
+	PoissonGenerator<2>* pGenerator_2D;
+
+	PoissonDiskSampler* pMasterSampler;
+
+	int nTotalSamples;
+	int dummySampler;
+
+	
+
+	float* samples;
+
+};
+
+
+PoissonDiskSampler *CreatePoissonDiskSampler(const ParamSet &params, const Film *film,
+	const Camera *camera);
+
 
 
 #endif
