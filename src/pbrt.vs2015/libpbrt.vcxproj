@@ -257,6 +257,7 @@
     <ClInclude Include="..\samplers\bestcandidate.h" />
     <ClInclude Include="..\samplers\halton.h" />
     <ClInclude Include="..\samplers\lowdiscrepancy.h" />
+    <ClInclude Include="..\samplers\poisson.h" />
     <ClInclude Include="..\samplers\random.h" />
     <ClInclude Include="..\samplers\stratified.h" />
     <ClInclude Include="..\shapes\cone.h" />
@@ -1221,6 +1222,7 @@
     <ClCompile Include="..\samplers\bestcandidate.cpp" />
     <ClCompile Include="..\samplers\halton.cpp" />
     <ClCompile Include="..\samplers\lowdiscrepancy.cpp" />
+    <ClCompile Include="..\samplers\poisson.cpp" />
     <ClCompile Include="..\samplers\random.cpp" />
     <ClCompile Include="..\samplers\stratified.cpp" />
     <ClCompile Include="..\shapes\cone.cpp" />
