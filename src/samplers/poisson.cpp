@@ -75,7 +75,7 @@ PoissonGenerator<DIM>::PoissonGenerator(int nSamples,
 		m_dimWidth[i] = m_dimWidth[i + 1] * m_gridWidth;
 	}
 
-	Info("# dim: %d, min distance: %f, cell size: %f, grid width: %d\n", DIM, m_minDistance, m_cellSize, m_gridWidth);
+	//Info("# dim: %d, min distance: %f, cell size: %f, grid width: %d\n", DIM, m_minDistance, m_cellSize, m_gridWidth);
 
 	m_grid = new PoissonGridPoint<DIM>[m_dimWidth[0]];
 }
@@ -252,7 +252,7 @@ int PoissonGenerator<DIM>::PlaceSamples(float* samples, int offset, int step) {
 			}
 		}
 	} while (!m_activeList.empty() && sampleCount < m_nSamples);
-	Info("# Total %d samples\n", sampleCount);
+	//Info("# Total %d samples\n", sampleCount);
 	return sampleCount;
 }
 
@@ -364,7 +364,6 @@ PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yen
 	if (mode == mode_single) {
 		PrepareNewSamples(rng);
 	}
-	//PrepareNewSamples(rng);
 }
 
 
@@ -412,13 +411,29 @@ again:
 	sample->lensU = rng.RandomFloat();
 	sample->lensV = rng.RandomFloat();
 #else
-	sample->lensU = samples[offset + 3];
-	sample->lensV = samples[offset + 4];
+	int camera_offset;
+	// if not enough, use random
+	if (nCurrentSampleIndex >= nValidCameraSamples) {
+		camera_offset = (rng.RandomUInt() % nValidCameraSamples) * 5;
+	}
+	else {
+		camera_offset = offset;
+	}
+	sample->lensU = samples[camera_offset + 3];
+	sample->lensV = samples[camera_offset + 4];
 #endif
 #if TIME_SAMPLE_GENERATE == GENERATE_FROM_RANDOM
 	sample->time = Lerp(rng.RandomFloat(), shutterOpen, shutterClose);
 #else
-	sample->time = Lerp(samples[offset + 2], shutterOpen, shutterClose);
+	int time_offset;
+	// if not enough, use random
+	if (nCurrentSampleIndex >= nValidTimeSamples) {
+		time_offset = (rng.RandomUInt() % nValidTimeSamples) * 5;
+	}
+	else {
+		time_offset = offset;
+	}
+	sample->time = Lerp(samples[time_offset + 2], shutterOpen, shutterClose);
 #endif
 	if (sample->imageX < xPixelStart || sample->imageX >= xPixelEnd ||
 		sample->imageY < yPixelStart || sample->imageY >= yPixelEnd) {
@@ -441,17 +456,18 @@ void PoissonDiskSampler::PrepareNewSamples(RNG& rng) {
 	// image samples
 	pGenerator_image->SetPRNG(&rng);
 	nValidImageSamples = nValidSamples = pGenerator_image->PlaceSamples(samples, 0, 5);
+	//Info("Image Sample: %d", nValidImageSamples);
 	// camera samples
 #if CAMERA_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
 	pGenerator_camera->SetPRNG(&rng);
 	nValidCameraSamples = pGenerator_camera->PlaceSamples(samples, 3, 5);
-	nValidSamples = min(nValidSamples, nValidCameraSamples);
+	//Info("Camera Sample: %d", nValidCameraSamples);
 #endif
 	// time samples
 #if TIME_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
 	pGenerator_time->SetPRNG(&rng);
 	nValidTimeSamples = pGenerator_time->PlaceSamples(samples, 2, 5);
-	nValidSamples = min(nValidSamples, nValidTimeSamples);
+	//Info("Time Sample: %d", nValidTimeSamples);
 #endif
 	
 }
