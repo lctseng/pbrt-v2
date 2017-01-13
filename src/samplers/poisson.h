@@ -96,7 +96,7 @@ private:
 class PoissonDiskSampler : public Sampler {
 public:
 
-	enum SampleMode { mode_repeat, mode_single };
+	enum SampleMode { mode_repeat, mode_single, mode_reuse };
 
 	// PoissonDiskSampler Public Methods
 	PoissonDiskSampler(int xstart, int xend, int ystart, int yend,
@@ -130,9 +130,17 @@ private:
 
 	float* samples;
 
-	PoissonGenerator<1>* pGenerator_1D;
-	PoissonGenerator<2>* pGenerator_2D;
+	int nValidImageSamples;
+	PoissonGenerator<2>* pGenerator_image;
 
+#if CAMERA_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
+	int nValidTimeSamples;
+	PoissonGenerator<1>* pGenerator_time;
+#endif
+#if TIME_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
+	int nValidCameraSamples;
+	PoissonGenerator<2>* pGenerator_camera;
+#endif
 	float xTileWitdh, yTileWitdh;
 
 };

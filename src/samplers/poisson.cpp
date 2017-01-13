@@ -330,12 +330,9 @@ PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yen
 	samples(new float[nTotalSamplesPrepared * 5]),
 	m_SampleMode(mode),
 	nEmittedSamples(0),
-	pGenerator_1D(nullptr),
-	pGenerator_2D(nullptr),
 	nValidSamples(0),
 	nCurrentSampleIndex(0)
 {
-	pGenerator_1D = new PoissonGenerator<1>(nTotalSamplesPrepared);
 	// compute aspect ratio for 2D
 	int dx = (xend - xstart);
 	int dy = (yend - ystart);
@@ -352,8 +349,19 @@ PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yen
 		yTileWitdh = dy * 1.05f;
 		xTileWitdh = dx / ratio[1] * 1.05f;
 	}
-	pGenerator_2D = new PoissonGenerator<2>(nTotalSamplesPrepared, ratio);
-	if (mode == mode_single) {
+	// create generators
+	// image, consider ratio
+	pGenerator_image = new PoissonGenerator<2>(nTotalSamplesPrepared, ratio);
+	// camera, do not consider ratio
+#if CAMERA_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
+	pGenerator_camera = new PoissonGenerator<2>(nTotalSamplesPrepared);
+#endif
+	// time, do not consider ratio
+#if TIME_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
+	pGenerator_time = new PoissonGenerator<1>(nTotalSamplesPrepared);
+#endif
+	// preparing samples for single and reuse mode
+	if (mode == mode_single || mode == mode_reuse) {
 		PrepareNewSamples(rng);
 	}
 	//PrepareNewSamples(rng);
@@ -362,8 +370,13 @@ PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yen
 
 PoissonDiskSampler::~PoissonDiskSampler() {
 	delete[] samples;
-	delete pGenerator_1D;
-	delete pGenerator_2D;
+	delete pGenerator_image;
+#if CAMERA_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
+	delete pGenerator_camera;
+#endif
+#if TIME_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
+	delete pGenerator_time;
+#endif
 }
 
 Sampler *PoissonDiskSampler::GetSubSampler(int num, int count) {
@@ -424,12 +437,23 @@ again:
 }
 
 void PoissonDiskSampler::PrepareNewSamples(RNG& rng) {
-	//pGenerator_1D->SetPRNG(&rng);
-	pGenerator_2D->SetPRNG(&rng);
-	nValidSamples = pGenerator_2D->PlaceSamples(samples, 0, 5);
-	//nValidSamples = min(nValidSamples, pGenerator_2D->PlaceSamples(samples, 3, 5));
-	//nValidSamples = min(nValidSamples, pGenerator_1D->PlaceSamples(samples, 2, 5));
 	nCurrentSampleIndex = 0;
+	// image samples
+	pGenerator_image->SetPRNG(&rng);
+	nValidImageSamples = nValidSamples = pGenerator_image->PlaceSamples(samples, 0, 5);
+	// camera samples
+#if CAMERA_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
+	pGenerator_camera->SetPRNG(&rng);
+	nValidCameraSamples = pGenerator_camera->PlaceSamples(samples, 3, 5);
+	nValidSamples = min(nValidSamples, nValidCameraSamples);
+#endif
+	// time samples
+#if TIME_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
+	pGenerator_time->SetPRNG(&rng);
+	nValidTimeSamples = pGenerator_time->PlaceSamples(samples, 2, 5);
+	nValidSamples = min(nValidSamples, nValidTimeSamples);
+#endif
+	
 }
 
 PoissonDiskSampler *CreatePoissonDiskSampler(const ParamSet &params, const Film *film,
