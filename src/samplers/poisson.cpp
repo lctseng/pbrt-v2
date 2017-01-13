@@ -42,7 +42,7 @@ float PoissonGridPoint<1>::ComputeDistance(const PoissonGridPoint<1>& other) con
 
 template<int DIM>
 PoissonGenerator<DIM>::PoissonGenerator(int nSamples,
-	std::initializer_list<float> rangeLimit,
+	float* rangeLimit,
 	float minDistance,
 	int k)
 	:m_nSamples(nSamples), m_k(k)
@@ -52,12 +52,10 @@ PoissonGenerator<DIM>::PoissonGenerator(int nSamples,
 		m_rangeLimit[i] = 1.0f;
 	}
 	// set limit ratio
-	if (rangeLimit.size() < DIM) {
-		Warning("The size of element of new range limit (%d) is smaller then dimension (%d)", rangeLimit.size(), DIM);
-	}
-	int max_size = min(DIM, (int)rangeLimit.size());
-	for (int i = 0;i < max_size;++i) {
-		m_rangeLimit[i] = *(rangeLimit.begin() + i);
+	if (rangeLimit) {
+		for (int i = 0;i < DIM;++i) {
+			m_rangeLimit[i] = rangeLimit[i];
+		}
 	}
 	float accu_ratio = 1.0f;
 	for (int i = 0;i < DIM;++i) {

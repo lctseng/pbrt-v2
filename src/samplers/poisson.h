@@ -38,7 +38,7 @@ public:
 template<int DIM>
 class PoissonGenerator {
 public:
-	PoissonGenerator(int nSamples, std::initializer_list<float> rangeLimit = {}, float minDistance = -1, int k = 30);
+	PoissonGenerator(int nSamples, float* rangeLimit = nullptr, float minDistance = -1, int k = 30);
 	~PoissonGenerator();
 	int PlaceSamples(float* samples, int offset = 0, int step = DIM);
 
