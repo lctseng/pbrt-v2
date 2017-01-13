@@ -324,12 +324,14 @@ PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yen
 	int nPixelSamples, float sopen, float sclose, int nMaxSample, SampleMode mode)
 	: Sampler(xstart, xend, ystart, yend, nPixelSamples, sopen, sclose),
 	nTotalSamplesRequired((xend - xstart)*(yend - ystart) * nPixelSamples),
-	nTotalSamplesPrepared(max(nTotalSamplesRequired, nMaxSample)),
+	nTotalSamplesPrepared(min(nTotalSamplesRequired, nMaxSample)),
 	nMaxSample(nMaxSample),
 	rng(xstart + ystart * (xend - xstart)),
 	samples(new float[nTotalSamplesPrepared * 5]),
 	m_SampleMode(mode),
 	nEmittedSamples(0),
+	pGenerator_1D(nullptr),
+	pGenerator_2D(nullptr),
 	nValidSamples(0)
 {
 	pGenerator_1D = new PoissonGenerator<1>(nTotalSamplesPrepared);
@@ -356,8 +358,8 @@ PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yen
 
 PoissonDiskSampler::~PoissonDiskSampler() {
 	delete[] samples;
-	delete[] pGenerator_1D;
-	delete[] pGenerator_2D;
+	delete pGenerator_1D;
+	delete pGenerator_2D;
 }
 
 Sampler *PoissonDiskSampler::GetSubSampler(int num, int count) {
