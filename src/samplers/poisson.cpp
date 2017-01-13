@@ -281,12 +281,12 @@ void PoissonGenerator<DIM>::GenerateCoordinateAround(const PoissonGridPoint<DIM>
 
 template<int DIM>
 float PoissonGenerator<DIM>::GetMinDistanceAdjustValue() const {
-	return 1.25f;
+	return 1.f;
 }
 
 template<>
 float PoissonGenerator<1>::GetMinDistanceAdjustValue() const {
-	return 1.47f;
+	return 1.f;
 }
 
 
@@ -323,7 +323,7 @@ template class PoissonGenerator<1>;
 PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yend,
 	int nPixelSamples, float sopen, float sclose, int nMaxSample, SampleMode mode)
 	: Sampler(xstart, xend, ystart, yend, nPixelSamples, sopen, sclose),
-	nTotalSamplesRequired((xend - xstart)*(yend - ystart) * nPixelSamples),
+	nTotalSamplesRequired((xend - xstart)*(yend - ystart) * nPixelSamples * 1.58),
 	nTotalSamplesPrepared(min(nTotalSamplesRequired, nMaxSample)),
 	nMaxSample(nMaxSample),
 	rng(xstart + ystart * (xend - xstart)),
@@ -332,7 +332,8 @@ PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yen
 	nEmittedSamples(0),
 	pGenerator_1D(nullptr),
 	pGenerator_2D(nullptr),
-	nValidSamples(0)
+	nValidSamples(0),
+	nCurrentSampleIndex(0)
 {
 	pGenerator_1D = new PoissonGenerator<1>(nTotalSamplesPrepared);
 	// compute aspect ratio for 2D
@@ -342,17 +343,20 @@ PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yen
 	if (dx >= dy) {
 		ratio[1] = 1.0f;
 		ratio[0] = (float)(dy) / (float)dx;
-		xTileWitdh = dx;
-		yTileWitdh = dy / ratio[0];
+		xTileWitdh = dx * 1.05f;
+		yTileWitdh = dy / ratio[0] * 1.05f;
 	}
 	else {
 		ratio[1] = (float)(dx) / (float)dy;
 		ratio[0] = 1.0f;
-		yTileWitdh = dy;
-		xTileWitdh = dx / ratio[1];
+		yTileWitdh = dy * 1.05f;
+		xTileWitdh = dx / ratio[1] * 1.05f;
 	}
 	pGenerator_2D = new PoissonGenerator<2>(nTotalSamplesPrepared, ratio);
-	PrepareNewSamples(rng);
+	if (mode == mode_single) {
+		PrepareNewSamples(rng);
+	}
+	//PrepareNewSamples(rng);
 }
 
 
@@ -366,11 +370,13 @@ Sampler *PoissonDiskSampler::GetSubSampler(int num, int count) {
 	int x0, x1, y0, y1;
 	ComputeSubWindow(num, count, &x0, &x1, &y0, &y1);
 	if (x0 == x1 || y0 == y1) return NULL;
+	Info("Create sub-sampler with %d, %d, %d samples\n", (x1 - x0), (y1 - y0), samplesPerPixel);
 	return new PoissonDiskSampler(x0, x1, y0, y1, samplesPerPixel,
-		shutterOpen, shutterClose, nMaxSample);
+		shutterOpen, shutterClose, nMaxSample, mode_single);
 }
 
 int PoissonDiskSampler::GetMoreSamples(Sample *sample, RNG &rng) {
+again:
 	// check max
 	if (nEmittedSamples >= nTotalSamplesRequired) {
 		return 0;
@@ -387,11 +393,19 @@ int PoissonDiskSampler::GetMoreSamples(Sample *sample, RNG &rng) {
 	}
 	// fill and return a sample
 	int offset = nCurrentSampleIndex++ * 5;
-	sample->imageX = xPixelStart + samples[offset] * xTileWitdh;
-	sample->imageY = yPixelStart + samples[offset + 1] * yTileWitdh;
-	sample->lensU = samples[offset + 3];
-	sample->lensV = samples[offset + 4];
-	sample->time = Lerp(samples[offset + 2], shutterOpen, shutterClose);
+	sample->imageX = xPixelStart + samples[offset + 1] * xTileWitdh;
+	sample->imageY = yPixelStart + samples[offset] * yTileWitdh;
+	sample->lensU = rng.RandomFloat();//samples[offset + 3];
+	sample->lensV = rng.RandomFloat();//samples[offset + 4];
+	//sample->time = Lerp(samples[offset + 2], shutterOpen, shutterClose);
+	sample->time = Lerp(rng.RandomFloat(), shutterOpen, shutterClose);
+	
+	if (sample->imageX < xPixelStart || sample->imageX >= xPixelEnd ||
+		sample->imageY < yPixelStart || sample->imageY >= yPixelEnd) {
+		goto again;
+	}
+
+
 	// Compute integrator samples 
 	for (uint32_t i = 0; i < sample->n1D.size(); ++i)
 		LDShuffleScrambled1D(sample->n1D[i], 1, sample->oneD[i], rng);
@@ -403,11 +417,11 @@ int PoissonDiskSampler::GetMoreSamples(Sample *sample, RNG &rng) {
 }
 
 void PoissonDiskSampler::PrepareNewSamples(RNG& rng) {
-	pGenerator_1D->SetPRNG(&rng);
+	//pGenerator_1D->SetPRNG(&rng);
 	pGenerator_2D->SetPRNG(&rng);
-	nValidSamples = pGenerator_1D->PlaceSamples(samples, 2, 5);
-	nValidSamples = min(nValidSamples, pGenerator_2D->PlaceSamples(samples, 0, 5));
-	nValidSamples = min(nValidSamples, pGenerator_2D->PlaceSamples(samples, 3, 5));
+	nValidSamples = pGenerator_2D->PlaceSamples(samples, 0, 5);
+	//nValidSamples = min(nValidSamples, pGenerator_2D->PlaceSamples(samples, 3, 5));
+	//nValidSamples = min(nValidSamples, pGenerator_1D->PlaceSamples(samples, 2, 5));
 	nCurrentSampleIndex = 0;
 }
 
