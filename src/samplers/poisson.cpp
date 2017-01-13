@@ -361,7 +361,7 @@ PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yen
 	pGenerator_time = new PoissonGenerator<1>(nTotalSamplesPrepared);
 #endif
 	// preparing samples for single and reuse mode
-	if (mode == mode_single || mode == mode_reuse) {
+	if (mode == mode_single) {
 		PrepareNewSamples(rng);
 	}
 	//PrepareNewSamples(rng);

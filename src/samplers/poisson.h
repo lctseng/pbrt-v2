@@ -96,7 +96,7 @@ private:
 class PoissonDiskSampler : public Sampler {
 public:
 
-	enum SampleMode { mode_repeat, mode_single, mode_reuse };
+	enum SampleMode { mode_repeat, mode_single };
 
 	// PoissonDiskSampler Public Methods
 	PoissonDiskSampler(int xstart, int xend, int ystart, int yend,
