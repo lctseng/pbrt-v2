@@ -21,6 +21,13 @@
   printf("\n");\
 }
 
+#define GENERATE_FROM_IMAGE 1
+#define GENERATE_FROM_SAMPLE 2
+#define GENERATE_FROM_RANDOM 3
+
+#define CAMERA_SAMPLE_GENERATE GENERATE_FROM_IMAGE
+#define TIME_SAMPLE_GENERATE GENERATE_FROM_RANDOM
+
 template<int DIM>
 class PoissonGridPoint {
 public:

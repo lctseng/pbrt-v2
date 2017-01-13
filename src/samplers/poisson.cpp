@@ -395,11 +395,28 @@ again:
 	int offset = nCurrentSampleIndex++ * 5;
 	sample->imageX = xPixelStart + samples[offset + 1] * xTileWitdh;
 	sample->imageY = yPixelStart + samples[offset] * yTileWitdh;
-	sample->lensU = rng.RandomFloat();//samples[offset + 3];
-	sample->lensV = rng.RandomFloat();//samples[offset + 4];
-	//sample->time = Lerp(samples[offset + 2], shutterOpen, shutterClose);
+#if CAMERA_SAMPLE_GENERATE == GENERATE_FROM_IMAGE
+	float cameraU = samples[offset + 1], cameraV = samples[offset] * 2;
+	if (cameraU > 0.5f) {
+		cameraU = (cameraU - 0.5f) * 2;
+	}
+	else {
+		cameraU *= 2;
+	}
+	sample->lensU = cameraU;
+	sample->lensV = cameraV;
+#elif CAMERA_SAMPLE_GENERATE == GENERATE_FROM_RANDOM
+	sample->lensU = rng.RandomFloat();
+	sample->lensV = rng.RandomFloat();
+#else
+	sample->lensU = samples[offset + 3];
+	sample->lensV = samples[offset + 4];
+#endif
+#if TIME_SAMPLE_GENERATE == GENERATE_FROM_RANDOM
 	sample->time = Lerp(rng.RandomFloat(), shutterOpen, shutterClose);
-	
+#else
+	sample->time = Lerp(samples[offset + 2], shutterOpen, shutterClose);
+#endif
 	if (sample->imageX < xPixelStart || sample->imageX >= xPixelEnd ||
 		sample->imageY < yPixelStart || sample->imageY >= yPixelEnd) {
 		goto again;
