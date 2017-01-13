@@ -49,6 +49,7 @@ public:
 	bool CheckCoordinateFit(const PoissonGridPoint<DIM>& p) const;
 
 	static const int GRID_CHECK_SIZE = 3;
+	float GetMinDistanceAdjustValue() const;
 
 private:
 
@@ -125,6 +126,8 @@ private:
 
 	PoissonGenerator<1>* pGenerator_1D;
 	PoissonGenerator<2>* pGenerator_2D;
+
+	float xTileWitdh, yTileWitdh;
 
 };
 

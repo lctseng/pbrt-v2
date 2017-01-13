@@ -62,7 +62,7 @@ PoissonGenerator<DIM>::PoissonGenerator(int nSamples,
 		accu_ratio *= m_rangeLimit[i];
 	}
 	if (minDistance < 0.f) {
-		m_minDistance = 1.f / powf(nSamples / accu_ratio, 1.f / DIM) / 1.25f;
+		m_minDistance = 1.f / powf(nSamples / accu_ratio, 1.f / DIM) / GetMinDistanceAdjustValue();
 	}
 	else {
 		m_minDistance = minDistance;
@@ -279,6 +279,17 @@ void PoissonGenerator<DIM>::GenerateCoordinateAround(const PoissonGridPoint<DIM>
 	throw(std::runtime_error(buf));
 }
 
+template<int DIM>
+float PoissonGenerator<DIM>::GetMinDistanceAdjustValue() const {
+	return 1.25f;
+}
+
+template<>
+float PoissonGenerator<1>::GetMinDistanceAdjustValue() const {
+	return 1.47f;
+}
+
+
 // User provide: coordinate generation for 2D
 template<>
 void PoissonGenerator<2>::GenerateCoordinateAround(const PoissonGridPoint<2>& p) {
@@ -316,13 +327,29 @@ PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yen
 	nTotalSamplesPrepared(max(nTotalSamplesRequired, nMaxSample)),
 	nMaxSample(nMaxSample),
 	rng(xstart + ystart * (xend - xstart)),
-	pGenerator_1D(new PoissonGenerator<1>(nTotalSamplesPrepared)),
-	pGenerator_2D(new PoissonGenerator<2>(nTotalSamplesPrepared)),
 	samples(new float[nTotalSamplesPrepared * 5]),
 	m_SampleMode(mode),
 	nEmittedSamples(0),
 	nValidSamples(0)
 {
+	pGenerator_1D = new PoissonGenerator<1>(nTotalSamplesPrepared);
+	// compute aspect ratio for 2D
+	int dx = (xend - xstart);
+	int dy = (yend - ystart);
+	float ratio[2]; // 0: y, 1: x
+	if (dx >= dy) {
+		ratio[1] = 1.0f;
+		ratio[0] = (float)(dy) / (float)dx;
+		xTileWitdh = dx;
+		yTileWitdh = dy / ratio[0];
+	}
+	else {
+		ratio[1] = (float)(dx) / (float)dy;
+		ratio[0] = 1.0f;
+		yTileWitdh = dy;
+		xTileWitdh = dx / ratio[1];
+	}
+	pGenerator_2D = new PoissonGenerator<2>(nTotalSamplesPrepared, ratio);
 	PrepareNewSamples(rng);
 }
 
@@ -358,8 +385,8 @@ int PoissonDiskSampler::GetMoreSamples(Sample *sample, RNG &rng) {
 	}
 	// fill and return a sample
 	int offset = nCurrentSampleIndex++ * 5;
-	sample->imageX = samples[offset];
-	sample->imageY = samples[offset + 1];
+	sample->imageX = xPixelStart + samples[offset] * xTileWitdh;
+	sample->imageY = yPixelStart + samples[offset + 1] * yTileWitdh;
 	sample->lensU = samples[offset + 3];
 	sample->lensV = samples[offset + 4];
 	sample->time = Lerp(samples[offset + 2], shutterOpen, shutterClose);
