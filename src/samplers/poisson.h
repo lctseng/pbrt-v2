@@ -13,8 +13,6 @@
 
 #include <vector>
 
-#define POISSON_VERBOSE
-
 #define PRINT_POINT(point, PREFIX) { \
   printf(PREFIX);\
   for(int i=0;i<DIM;i++){\
@@ -24,60 +22,65 @@
 }
 
 template<int DIM>
-class PoissonGridPoint{
+class PoissonGridPoint {
 public:
-  PoissonGridPoint();
-  PoissonGridPoint(const float (&coor)[DIM]);
-  float coordinate[DIM]; 
-  bool m_valid;
+	PoissonGridPoint();
+	PoissonGridPoint(const float(&coor)[DIM]);
+	float coordinate[DIM];
+	bool m_valid;
 
-  bool CheckCoordinateFit() const;
-  inline float ComputeDistance(const PoissonGridPoint<DIM>& other) const;
+	inline float ComputeDistance(const PoissonGridPoint<DIM>& other) const;
 
-  inline float& operator[](int index){ return coordinate[index]; }
-  inline float operator[](int index) const { return coordinate[index]; }
+	inline float& operator[](int index) { return coordinate[index]; }
+	inline float operator[](int index) const { return coordinate[index]; }
 };
 
 template<int DIM>
-class PoissonGenerator{
+class PoissonGenerator {
 public:
-  PoissonGenerator(int nSamples, float minDistance = -1 ,int k = 30);
-  ~PoissonGenerator();
-  int PlaceSamples(float* samples, int offset = 0, int step = DIM);
-  
-  static const int GRID_CHECK_SIZE = 3;
+	PoissonGenerator(int nSamples, std::initializer_list<float> rangeLimit = {}, float minDistance = -1, int k = 30);
+	~PoissonGenerator();
+	int PlaceSamples(float* samples, int offset = 0, int step = DIM);
 
-  void SetPRNG(RNG* pRng);
+	
+
+	void SetPRNG(RNG* pRng);
+
+	bool CheckCoordinateFit(const PoissonGridPoint<DIM>& p) const;
+
+	static const int GRID_CHECK_SIZE = 3;
 
 private:
 
-  inline PoissonGridPoint<DIM> PopRandom(std::vector<PoissonGridPoint<DIM> >& activeList);
-  inline PoissonGridPoint<DIM> GenerateRandomPoint();
-  inline void GenerateRandomNumber();
-  inline void ComputeGridIndex(const PoissonGridPoint<DIM>& p, int (&result)[DIM]);
-  inline int ComputeAccumulatedGridIndex(const int (&indice)[DIM]) const;
-  bool HasNeighbor(const PoissonGridPoint<DIM>& p);
-  void GenerateCoordinateAround(const PoissonGridPoint<DIM>& p);
-  inline PoissonGridPoint<DIM> GenerateRandomPointAround(const PoissonGridPoint<DIM>& p); 
-  inline void InsertIntoGrid(PoissonGridPoint<DIM>&& p);
+	inline PoissonGridPoint<DIM> PopRandom(std::vector<PoissonGridPoint<DIM> >& activeList);
+	inline PoissonGridPoint<DIM> GenerateRandomPoint();
+	inline void GenerateRandomNumber();
+	inline void ComputeGridIndex(const PoissonGridPoint<DIM>& p, int(&result)[DIM]);
+	inline int ComputeAccumulatedGridIndex(const int(&indice)[DIM]) const;
+	bool HasNeighbor(const PoissonGridPoint<DIM>& p);
+	void GenerateCoordinateAround(const PoissonGridPoint<DIM>& p);
+	inline PoissonGridPoint<DIM> GenerateRandomPointAround(const PoissonGridPoint<DIM>& p);
+	inline void InsertIntoGrid(PoissonGridPoint<DIM>&& p);
 
-  int m_k;
-  int m_nSamples;
+	int m_k;
+	int m_nSamples;
 
-  float m_minDistance;
-  float m_cellSize;
-  int m_gridWidth;
+	float m_minDistance;
+	float m_cellSize;
+	int m_gridWidth;
 
-  int m_dimWidth[DIM];
-  
-  float m_numberBuffer[DIM];
-  std::vector<PoissonGridPoint<DIM> > m_activeList;
+	int m_dimWidth[DIM];
 
-  RNG localRng;
-  RNG* pRng;
-  
+	float m_numberBuffer[DIM];
+	std::vector<PoissonGridPoint<DIM> > m_activeList;
 
-  PoissonGridPoint<DIM>* m_grid;
+	float m_rangeLimit[DIM];
+
+	RNG localRng;
+	RNG* pRng;
+
+
+	PoissonGridPoint<DIM>* m_grid;
 };
 
 
@@ -100,7 +103,7 @@ public:
 	int GetMoreSamples(Sample *sample, RNG &rng);
 private:
 	// PoissonDiskSampler Private Data
-	
+
 	void PrepareNewSamples(RNG& rng);
 
 	SampleMode m_SampleMode;
@@ -109,19 +112,19 @@ private:
 
 	RNG rng;
 
-	PoissonGenerator<1>* pGenerator_1D;
-	PoissonGenerator<2>* pGenerator_2D;
-
 	//int table.
 
 	int nTotalSamplesRequired;
 	int nTotalSamplesPrepared;
 	int nValidSamples;
 	int nCurrentSampleIndex;
-	
+
 	int nEmittedSamples;
 
 	float* samples;
+
+	PoissonGenerator<1>* pGenerator_1D;
+	PoissonGenerator<2>* pGenerator_2D;
 
 };
 

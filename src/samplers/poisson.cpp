@@ -41,29 +41,30 @@ float PoissonGridPoint<1>::ComputeDistance(const PoissonGridPoint<1>& other) con
 }
 
 template<int DIM>
-bool PoissonGridPoint<DIM>::CheckCoordinateFit() const {
-	if (coordinate[0] < 0.0f || coordinate[0] > 0.5f) {
-		return false;
-	}
-	if (coordinate[1] < 0.0f || coordinate[1] > 1.0f) {
-		return false;
-	}
-	/*
-	for (int i = 0;i < DIM;i++) {
-		if (coordinate[i] < 0.f || coordinate[i] > 1.f) {
-			return false;
-		}
-	}
-	*/
-	return true;
-}
-
-template<int DIM>
-PoissonGenerator<DIM>::PoissonGenerator(int nSamples, float minDistance, int k)
+PoissonGenerator<DIM>::PoissonGenerator(int nSamples,
+	std::initializer_list<float> rangeLimit,
+	float minDistance,
+	int k)
 	:m_nSamples(nSamples), m_k(k)
 {
+	// init limit ratio
+	for (int i = 0;i < DIM;++i) {
+		m_rangeLimit[i] = 1.0f;
+	}
+	// set limit ratio
+	if (rangeLimit.size() < DIM) {
+		Warning("The size of element of new range limit (%d) is smaller then dimension (%d)", rangeLimit.size(), DIM);
+	}
+	int max_size = min(DIM, (int)rangeLimit.size());
+	for (int i = 0;i < max_size;++i) {
+		m_rangeLimit[i] = *(rangeLimit.begin() + i);
+	}
+	float accu_ratio = 1.0f;
+	for (int i = 0;i < DIM;++i) {
+		accu_ratio *= m_rangeLimit[i];
+	}
 	if (minDistance < 0.f) {
-		m_minDistance = 1.f / powf(nSamples, 1.f / DIM) / 1.25f;
+		m_minDistance = 1.f / powf(nSamples / accu_ratio, 1.f / DIM) / 1.25f;
 	}
 	else {
 		m_minDistance = minDistance;
@@ -76,9 +77,7 @@ PoissonGenerator<DIM>::PoissonGenerator(int nSamples, float minDistance, int k)
 		m_dimWidth[i] = m_dimWidth[i + 1] * m_gridWidth;
 	}
 
-#ifdef POISSON_VERBOSE
-	printf("# dim: %d, min distance: %f, cell size: %f, grid width: %d\n", DIM, m_minDistance, m_cellSize, m_gridWidth);
-#endif
+	Info("# dim: %d, min distance: %f, cell size: %f, grid width: %d\n", DIM, m_minDistance, m_cellSize, m_gridWidth);
 
 	m_grid = new PoissonGridPoint<DIM>[m_dimWidth[0]];
 }
@@ -86,6 +85,16 @@ PoissonGenerator<DIM>::PoissonGenerator(int nSamples, float minDistance, int k)
 template<int DIM>
 PoissonGenerator<DIM>::~PoissonGenerator() {
 	delete[] m_grid;
+}
+
+template<int DIM>
+bool PoissonGenerator<DIM>::CheckCoordinateFit(const PoissonGridPoint<DIM>& p) const {
+	for (int i = 0;i < DIM;i++) {
+		if (p.coordinate[i] < 0.f || p.coordinate[i] > m_rangeLimit[i]) {
+			return false;
+		}
+	}
+	return true;
 }
 
 template<int DIM>
@@ -214,7 +223,7 @@ int PoissonGenerator<DIM>::PlaceSamples(float* samples, int offset, int step) {
 	PoissonGridPoint<DIM> point;
 	do {
 		point = GenerateRandomPoint();
-	} while (!point.CheckCoordinateFit());
+	} while (!CheckCoordinateFit(point));
 	// put that point in output and active
 	m_activeList.push_back(point);
 	for (int j = 0;j < DIM;j++) {
@@ -229,7 +238,7 @@ int PoissonGenerator<DIM>::PlaceSamples(float* samples, int offset, int step) {
 		for (int i = 0;i < m_k;i++) {
 			auto new_point = GenerateRandomPointAround(pop_point);
 			// check the point with grid
-			if (new_point.CheckCoordinateFit()) {
+			if (CheckCoordinateFit(new_point)) {
 				if (!HasNeighbor(new_point)) {
 					m_activeList.push_back(new_point);
 					InsertIntoGrid(std::move(new_point));
@@ -245,9 +254,7 @@ int PoissonGenerator<DIM>::PlaceSamples(float* samples, int offset, int step) {
 			}
 		}
 	} while (!m_activeList.empty() && sampleCount < m_nSamples);
-#ifdef POISSON_VERBOSE
-	printf("# Total %d samples\n", sampleCount);
-#endif
+	Info("# Total %d samples\n", sampleCount);
 	return sampleCount;
 }
 
@@ -260,18 +267,18 @@ void PoissonGenerator<DIM>::SetPRNG(RNG* p) {
 		pRng = &localRng;
 	}
 }
+template<int DIM>
+PoissonGridPoint<DIM> PoissonGenerator<DIM>::GenerateRandomPointAround(const PoissonGridPoint<DIM>& p) {
+	GenerateCoordinateAround(p);
+	return PoissonGridPoint<DIM>(m_numberBuffer);
+}
+
 
 template<int DIM>
 void PoissonGenerator<DIM>::GenerateCoordinateAround(const PoissonGridPoint<DIM>& p) {
 	char buf[1024];
 	sprintf(buf, "GenerateCoordinateAround is not implemented in this dimension: %d\n", DIM);
 	throw(std::runtime_error(buf));
-}
-
-template<int DIM>
-PoissonGridPoint<DIM> PoissonGenerator<DIM>::GenerateRandomPointAround(const PoissonGridPoint<DIM>& p) {
-	GenerateCoordinateAround(p);
-	return PoissonGridPoint<DIM>(m_numberBuffer);
 }
 
 // User provide: coordinate generation for 2D
