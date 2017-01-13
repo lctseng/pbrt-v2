@@ -42,11 +42,19 @@ float PoissonGridPoint<1>::ComputeDistance(const PoissonGridPoint<1>& other) con
 
 template<int DIM>
 bool PoissonGridPoint<DIM>::CheckCoordinateFit() const {
+	if (coordinate[0] < 0.0f || coordinate[0] > 0.5f) {
+		return false;
+	}
+	if (coordinate[1] < 0.0f || coordinate[1] > 1.0f) {
+		return false;
+	}
+	/*
 	for (int i = 0;i < DIM;i++) {
 		if (coordinate[i] < 0.f || coordinate[i] > 1.f) {
 			return false;
 		}
 	}
+	*/
 	return true;
 }
 
@@ -203,7 +211,10 @@ int PoissonGenerator<DIM>::PlaceSamples(float* samples, int offset, int step) {
 
 	int sampleCount = 1;
 	// generate first point
-	auto point = GenerateRandomPoint();
+	PoissonGridPoint<DIM> point;
+	do {
+		point = GenerateRandomPoint();
+	} while (!point.CheckCoordinateFit());
 	// put that point in output and active
 	m_activeList.push_back(point);
 	for (int j = 0;j < DIM;j++) {
@@ -238,6 +249,16 @@ int PoissonGenerator<DIM>::PlaceSamples(float* samples, int offset, int step) {
 	printf("# Total %d samples\n", sampleCount);
 #endif
 	return sampleCount;
+}
+
+template<int DIM>
+void PoissonGenerator<DIM>::SetPRNG(RNG* p) {
+	if (p) {
+		pRng = p;
+	}
+	else {
+		pRng = &localRng;
+	}
 }
 
 template<int DIM>
@@ -348,14 +369,12 @@ int PoissonDiskSampler::GetMoreSamples(Sample *sample, RNG &rng) {
 }
 
 void PoissonDiskSampler::PrepareNewSamples(RNG& rng) {
-	pGenerator_1D->pRng = &rng;
-	pGenerator_2D->pRng = &rng;
+	pGenerator_1D->SetPRNG(&rng);
+	pGenerator_2D->SetPRNG(&rng);
 	nValidSamples = pGenerator_1D->PlaceSamples(samples, 2, 5);
 	nValidSamples = min(nValidSamples, pGenerator_2D->PlaceSamples(samples, 0, 5));
 	nValidSamples = min(nValidSamples, pGenerator_2D->PlaceSamples(samples, 3, 5));
 	nCurrentSampleIndex = 0;
-	pGenerator_1D->pRng = &this->rng;
-	pGenerator_2D->pRng = &this->rng;
 }
 
 PoissonDiskSampler *CreatePoissonDiskSampler(const ParamSet &params, const Film *film,

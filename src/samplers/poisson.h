@@ -46,8 +46,8 @@ public:
   int PlaceSamples(float* samples, int offset = 0, int step = DIM);
   
   static const int GRID_CHECK_SIZE = 3;
-  RNG* pRng;
 
+  void SetPRNG(RNG* pRng);
 
 private:
 
@@ -73,6 +73,8 @@ private:
   float m_numberBuffer[DIM];
   std::vector<PoissonGridPoint<DIM> > m_activeList;
 
+  RNG localRng;
+  RNG* pRng;
   
 
   PoissonGridPoint<DIM>* m_grid;
