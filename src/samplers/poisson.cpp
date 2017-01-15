@@ -252,7 +252,7 @@ int PoissonGenerator<DIM>::PlaceSamples(float* samples, int offset, int step) {
 			}
 		}
 	} while (!m_activeList.empty() && sampleCount < m_nSamples);
-	Info("# Total %d samples\n", sampleCount);
+	//Info("# Total %d samples\n", sampleCount);
 	return sampleCount;
 }
 
