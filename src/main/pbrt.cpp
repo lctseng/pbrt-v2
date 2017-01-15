@@ -39,23 +39,12 @@
 
 
 // TODO:test for 3D plane
-#include "shapes/heightfield2.h"
-
+#include "samplers/poisson.h"
+#include "fstream"
 
 
 // main program
 int main(int argc, char *argv[]) {
-	/*
-	Transform t;
-	float zs[] = { 0,1,0,1 };
-	Heightfield2 hf(&t, &t, true, 2, 2, zs);
-
-	Ray r(Point(0, 0, 1), Normalize(Vector(1, 0, 0)), 0);
-
-	hf.Intersect(r, NULL, NULL, NULL);
-
-	return 0;
-	*/
     Options options;
     vector<string> filenames;
     // Process command-line arguments
@@ -73,6 +62,7 @@ int main(int argc, char *argv[]) {
         else filenames.push_back(argv[i]);
     }
 
+
     // Print welcome banner
     if (!options.quiet) {
         printf("pbrt version %s of %s at %s [Detected %d core(s)]\n",
@@ -83,6 +73,31 @@ int main(int argc, char *argv[]) {
         fflush(stdout);
     }
     pbrtInit(options);
+
+
+	/*
+	// COVART
+	RNG rng(999);
+	int nSamples = 1000;
+	int dim = 1;
+	float* samples = new float[nSamples * dim];
+	float limit[] = { 1.f };
+	PoissonGenerator<1> gen(nSamples, limit);
+	gen.SetPRNG(&rng);
+	int real_samples = gen.PlaceSamples(samples);
+	std::ofstream fout("samples_dev.txt");
+	for (int i = 0;i < real_samples;i++) {
+		for (int j = 0;j < dim;j++) {
+			fout << samples[i * dim + j] << ',';
+		}
+		fout << '\n';
+	}
+	fout.close();
+	return 0;
+	*/
+	
+
+
     // Process scene description
     PBRT_STARTED_PARSING();
     if (filenames.size() == 0) {
