@@ -5,7 +5,7 @@ Film "image"
     "string filename" "plants-ntu.exr"
 
 #bestcandidate
-Sampler "poisson" "integer pixelsamples" [64] "integer maxConcurrentSamples" [400000]
+Sampler "poisson" "integer pixelsamples" [1] "integer maxConcurrentSamples" [400000]
 
 
 PixelFilter "box" "float xwidth" [0.5] "float ywidth" [0.5]
@@ -72,12 +72,7 @@ AttributeEnd
 
 Include "geometry/ecosys/ecosys-texture.pbrt"
 
-#Include "geometry/ecosys/ecosys-apple.pbrt"
-#Include "geometry/ecosys/ecosys-bush.pbrt"
-#Include "geometry/ecosys/ecosys-dandelion.pbrt"
 Include "geometry/ecosys/ecosys-grass.pbrt"
-#Include "geometry/ecosys/ecosys-urtica.pbrt"
-#Include "geometry/ecosys/ecosys-yellowflower.pbrt"
 
 Include "geometry/ecosys/ecosys-terrain.pbrt"
 
