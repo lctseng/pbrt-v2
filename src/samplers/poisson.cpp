@@ -480,7 +480,7 @@ PoissonDiskSampler *CreatePoissonDiskSampler(const ParamSet &params, const Film 
 	int xstart, xend, ystart, yend;
 	film->GetSampleExtent(&xstart, &xend, &ystart, &yend);
 	int nsamp = params.FindOneInt("pixelsamples", 4);
-	int nMaxSample = params.FindOneInt("maxConcurrentSamples", 20000);
+	int nMaxSample = params.FindOneInt("maxConcurrentSamples", 400000);
 	if (PbrtOptions.quickRender) nsamp = 1;
 	return new PoissonDiskSampler(xstart, xend, ystart, yend, nsamp,
 		camera->shutterOpen, camera->shutterClose, nMaxSample, PoissonDiskSampler::mode_repeat);
