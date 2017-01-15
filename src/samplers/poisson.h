@@ -134,13 +134,14 @@ private:
 	int nValidCameraSamples;
 	PoissonGenerator<2>* pGenerator_camera;
 #endif
+	int nValidImageSamples;
 #if TIME_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
-	int nValidTimeSamples;
-	PoissonGenerator<1>* pGenerator_time;
+	// time from sample
+	// 3D samplers needed
+	PoissonGenerator<3>* pGenerator_image;
 #else
 	// time from random
 	// only 2D samplers needed
-	int nValidImageSamples;
 	PoissonGenerator<2>* pGenerator_image;
 #endif
 	float xTileWitdh, yTileWitdh;

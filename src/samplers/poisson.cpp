@@ -290,6 +290,22 @@ float PoissonGenerator<1>::GetMinDistanceAdjustValue() const {
 }
 
 
+// User provide: coordinate generation for 3D
+template<>
+void PoissonGenerator<3>::GenerateCoordinateAround(const PoissonGridPoint<3>& p) {
+	GenerateRandomNumber();
+	// random radius
+	float radius = m_minDistance * (m_numberBuffer[0] + 1.f);
+	// random angle
+	float angle1 = 2 * M_PI * m_numberBuffer[1];
+	float angle2 = 2 * M_PI * m_numberBuffer[2];
+	// save the coordinate
+	m_numberBuffer[0] = p[0] + radius * cos(angle1) * sin(angle2);
+	m_numberBuffer[1] = p[1] + radius * sin(angle1) * sin(angle2);
+	m_numberBuffer[2] = p[2] + radius * cos(angle2);
+}
+template class PoissonGenerator<3>;
+
 // User provide: coordinate generation for 2D
 template<>
 void PoissonGenerator<2>::GenerateCoordinateAround(const PoissonGridPoint<2>& p) {
@@ -350,15 +366,17 @@ PoissonDiskSampler::PoissonDiskSampler(int xstart, int xend, int ystart, int yen
 		xTileWitdh = dx / ratio[1] * 1.05f;
 	}
 	// create generators
-	// image, consider ratio
-	pGenerator_image = new PoissonGenerator<2>(nTotalSamplesPrepared, ratio);
 	// camera, do not consider ratio
 #if CAMERA_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
 	pGenerator_camera = new PoissonGenerator<2>(nTotalSamplesPrepared);
 #endif
-	// time, do not consider ratio
+	// image, consider ratio
 #if TIME_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
-	pGenerator_time = new PoissonGenerator<1>(nTotalSamplesPrepared);
+	// time from sample, image is 3D
+	pGenerator_image = new PoissonGenerator<3>(nTotalSamplesPrepared);
+#else
+	// time from random, image is 2D
+	pGenerator_image = new PoissonGenerator<2>(nTotalSamplesPrepared, ratio);
 #endif
 	// preparing samples for single and reuse mode
 	if (mode == mode_single) {
@@ -372,9 +390,6 @@ PoissonDiskSampler::~PoissonDiskSampler() {
 	delete pGenerator_image;
 #if CAMERA_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
 	delete pGenerator_camera;
-#endif
-#if TIME_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
-	delete pGenerator_time;
 #endif
 }
 
@@ -425,15 +440,8 @@ again:
 #if TIME_SAMPLE_GENERATE == GENERATE_FROM_RANDOM
 	sample->time = Lerp(rng.RandomFloat(), shutterOpen, shutterClose);
 #else
-	int time_offset;
-	// if not enough, use random
-	if (nCurrentSampleIndex >= nValidTimeSamples) {
-		time_offset = (rng.RandomUInt() % nValidTimeSamples) * 5;
-	}
-	else {
-		time_offset = offset;
-	}
-	sample->time = Lerp(samples[time_offset + 2], shutterOpen, shutterClose);
+	// time from sample
+	sample->time = Lerp(samples[offset + 2], shutterOpen, shutterClose);
 #endif
 	if (sample->imageX < xPixelStart || sample->imageX >= xPixelEnd ||
 		sample->imageY < yPixelStart || sample->imageY >= yPixelEnd) {
@@ -456,18 +464,12 @@ void PoissonDiskSampler::PrepareNewSamples(RNG& rng) {
 	// image samples
 	pGenerator_image->SetPRNG(&rng);
 	nValidImageSamples = nValidSamples = pGenerator_image->PlaceSamples(samples, 0, 5);
-	//Info("Image Sample: %d", nValidImageSamples);
+	Info("Image Sample: %d", nValidImageSamples);
 	// camera samples
 #if CAMERA_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
 	pGenerator_camera->SetPRNG(&rng);
 	nValidCameraSamples = pGenerator_camera->PlaceSamples(samples, 3, 5);
 	//Info("Camera Sample: %d", nValidCameraSamples);
-#endif
-	// time samples
-#if TIME_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
-	pGenerator_time->SetPRNG(&rng);
-	nValidTimeSamples = pGenerator_time->PlaceSamples(samples, 2, 5);
-	//Info("Time Sample: %d", nValidTimeSamples);
 #endif
 	
 }
