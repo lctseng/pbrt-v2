@@ -99,6 +99,7 @@
 #include "samplers/lowdiscrepancy.h"
 #include "samplers/random.h"
 #include "samplers/stratified.h"
+#include "samplers/poisson.h"
 #include "shapes/cone.h"
 #include "shapes/cylinder.h"
 #include "shapes/disk.h"
@@ -633,6 +634,8 @@ Sampler *MakeSampler(const string &name,
         sampler = CreateRandomSampler(paramSet, film, camera);
     else if (name == "stratified")
         sampler = CreateStratifiedSampler(paramSet, film, camera);
+	else if (name == "poisson")
+		sampler = CreatePoissonDiskSampler(paramSet, film, camera);
     else
         Warning("Sampler \"%s\" unknown.", name.c_str());
     paramSet.ReportUnused();

@@ -1682,6 +1682,9 @@
     <ClCompile Include="..\core\targa.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\samplers\poisson.cpp">
+      <Filter>Source Files\samplers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\core\pbrtlex.ll">

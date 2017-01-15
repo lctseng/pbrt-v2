@@ -202,6 +202,7 @@ void SamplerRenderer::Render(const Scene *scene) {
     // Compute number of _SamplerRendererTask_s to create for rendering
     int nPixels = camera->film->xResolution * camera->film->yResolution;
     int nTasks = max(32 * NumSystemCores(), nPixels / (16*16));
+	nTasks = 32 * NumSystemCores();
     nTasks = RoundUpPow2(nTasks);
     ProgressReporter reporter(nTasks, "Rendering");
     vector<Task *> renderTasks;

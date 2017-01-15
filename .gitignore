@@ -31,3 +31,6 @@ src/pbrt.vs*/.vs
 tmp/
 bin/
 lib/
+
+/scenes/
+!/scenes/plants-ntu.pbrt
