@@ -25,7 +25,7 @@
 #define GENERATE_FROM_RANDOM 2
 
 #define CAMERA_SAMPLE_GENERATE GENERATE_FROM_SAMPLE
-#define TIME_SAMPLE_GENERATE GENERATE_FROM_SAMPLE
+#define TIME_SAMPLE_GENERATE GENERATE_FROM_RANDOM
 
 template<int DIM>
 class PoissonGridPoint {
@@ -130,9 +130,6 @@ private:
 
 	float* samples;
 
-	int nValidImageSamples;
-	PoissonGenerator<2>* pGenerator_image;
-
 #if CAMERA_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
 	int nValidCameraSamples;
 	PoissonGenerator<2>* pGenerator_camera;
@@ -140,6 +137,11 @@ private:
 #if TIME_SAMPLE_GENERATE == GENERATE_FROM_SAMPLE
 	int nValidTimeSamples;
 	PoissonGenerator<1>* pGenerator_time;
+#else
+	// time from random
+	// only 2D samplers needed
+	int nValidImageSamples;
+	PoissonGenerator<2>* pGenerator_image;
 #endif
 	float xTileWitdh, yTileWitdh;
 
