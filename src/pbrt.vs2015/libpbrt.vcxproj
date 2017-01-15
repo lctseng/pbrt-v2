@@ -255,6 +255,7 @@
     <ClInclude Include="..\samplers\bestcandidate.h" />
     <ClInclude Include="..\samplers\halton.h" />
     <ClInclude Include="..\samplers\lowdiscrepancy.h" />
+    <ClInclude Include="..\samplers\poisson.h" />
     <ClInclude Include="..\samplers\random.h" />
     <ClInclude Include="..\samplers\stratified.h" />
     <ClInclude Include="..\shapes\cone.h" />
